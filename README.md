@@ -1,85 +1,76 @@
-# Générateur de visuels partenaires
+# Partner carousel generator
 
-Une page web toute simple : le partenaire ajoute son logo (ou sa photo) et ses jeux, et télécharge son carrousel Instagram prêt à publier.
+A tiny static web page where event partners add their logo (or photo) and their games, then download a ready-to-post Instagram carousel.
 
-- **Un seul fichier** (`index.html`) + un dossier d'images (`visuels/`). Aucun serveur, aucune base de données, aucune dépendance.
-- **Rien n'est envoyé ni stocké** : tout est calculé dans le navigateur du partenaire. Pas de cookie, pas de RGPD à gérer.
-- **Pas d'IA** : le détourage se fait par « fond uni » (baguette magique) ou en cliquant les coins de la boîte.
-- Hébergement gratuit sur **GitHub Pages**.
+- **One file** (`index.html`) + an `assets/` folder. No server, no database, no dependency, no build step.
+- **Nothing is uploaded or stored**: everything runs in the partner's browser. No cookies, no tracking.
+- **No AI**: background removal is a "plain background" magic wand or clicking the box corners.
+- Free hosting on **GitHub Pages**.
+- The **partner interface is in French** (strings live in `index.html`). The designer space, settings, code and docs are in English so anyone can reuse it.
 
-> Les visuels fournis dans `visuels/` sont des **visuels de démonstration**. Les graphistes doivent les remplacer (voir `GUIDE-GRAPHISTES.md`).
+> The images in `assets/` are **demo visuals** built with the Blague Friday logos and palette. Designers replace them (see `DESIGNER-GUIDE.md`).
 
----
-
-## Contenu du dossier
+## Folder
 
 ```
-index.html               ← l'outil (ne pas toucher, sauf le dev)
-README.md                ← ce fichier
-GUIDE-GRAPHISTES.md      ← à donner aux graphistes
-visuels/
-  reglages.txt           ← textes, couleurs, police… en français
-  polices/titres.ttf
-  couverture/fond.png
-  couverture/avant-plan-un-lot.png
-  couverture/avant-plan-des-lots.png
-  couverture/zones.png
-  jeu/fond.png
-  jeu/avant-plan.png
-  jeu/zones.png
-  pages-fixes/01-tombola.png
-  pages-fixes/02-live.png
+index.html
+README.md
+DESIGNER-GUIDE.md            <- give this to designers
+assets/
+  settings.txt               <- texts, colors, fonts... (plain text)
+  event-logo.png             <- shown in the page header (optional)
+  fonts/                     <- TITLE FONT and BODY FONT files
+  cover/background.png
+  cover/foreground-one-prize.png
+  cover/foreground-several-prizes.png
+  cover/zones.png
+  game/background.png
+  game/foreground.png        <- optional
+  game/zones.png
+  fixed-pages/01-tombola.png ...
 ```
 
-## Ce que fait l'outil
+## Test it on your computer
 
-1. **Couverture** : « Je suis une marque » (logo) ou « Je suis une personne » (photo ronde, zoom + glisser).
-   - Le logo est posé tel quel, sans bloc derrière.
-   - Si le logo est transparent, l'outil mesure le contraste avec **les vrais pixels du fond**. S'il ressort mal, le téléchargement est bloqué jusqu'à ce que le partenaire ajoute le cartouche de secours ou envoie une autre version du logo.
-   - Un logo non transparent (JPG) est affiché comme un cartouche aux coins arrondis.
-   - L'avant-plan change selon le total : « un lot » (1 exemplaire en tout) ou « des lots ».
-2. **Jeux** : une page par jeu (nom, nombre d'exemplaires, photo de la boîte).
-   - Un PNG déjà détouré est accepté directement.
-   - Sinon, le partenaire doit détourer la boîte dans l'outil avant de pouvoir télécharger.
-   - Taille minimale vérifiée pour éviter le flou.
-3. **Téléchargement** : un ZIP `blague-friday-2026-nom-du-partenaire.zip` (couverture + jeux + pages fixes, 20 pages max), ou bien les pages une par une (pratique sur iPhone).
+Double-clicking `index.html` does **not** work: browsers block reading `assets/` from a local file.
 
----
+- **Mac**: open Terminal, type `cd ` (with a space), drag the folder into the window, press Enter, then run `python3 -m http.server 8000`. Open http://localhost:8000. Press Ctrl+C to stop.
+- **Windows**: same from PowerShell with `py -m http.server 8000`, or simply publish on GitHub Pages (below) and test online.
 
-## Mettre en ligne sur GitHub Pages (≈ 10 min, sans ligne de commande)
+Things to try: brand and person modes, a dark logo (the tool should ask for a badge), a JPG box photo on a white background (background removal), a very long game name, the download on a phone, and `#designer` (password).
 
-1. Créez un compte sur github.com (gratuit) si besoin.
-2. Cliquez sur **New repository**, donnez-lui un nom (ex. `visuels-blague-friday`) et choisissez **Public**. La version gratuite de GitHub Pages demande un dépôt public : ce n'est pas un problème, car il ne contient que des visuels destinés à être publiés.
-3. Dans le dépôt, cliquez sur **Add file → Upload files** et glissez-déposez **tout le contenu** du dossier (`index.html`, `visuels/`…). Validez avec **Commit changes**.
-4. Ouvrez **Settings → Pages**. Dans « Branch », choisissez `main` et `/ (root)`, puis cliquez sur **Save**.
-5. Après une minute ou deux, l'adresse s'affiche, par exemple `https://votre-compte.github.io/visuels-blague-friday/`. C'est le lien à envoyer aux partenaires.
+## Publish on GitHub Pages (about 10 min, no command line)
 
-**Adresse personnalisée (facultatif)** : dans **Settings → Pages → Custom domain**, indiquez par exemple `visuels.blaguefriday.fr`, puis ajoutez chez votre hébergeur de nom de domaine un enregistrement CNAME qui pointe vers `votre-compte.github.io`.
+1. On github.com, click **New repository**, name it (e.g. `blague-friday-visuels`), choose **Public** (required for free Pages; it only contains visuals meant to be published anyway).
+2. **Add file -> Upload files**, drag **the content** of this folder (`index.html`, `assets/`...), then **Commit changes**.
+3. **Settings -> Pages**: Branch `main`, folder `/ (root)`, **Save**.
+4. After a minute or two the address appears, e.g. `https://your-account.github.io/blague-friday-visuels/`. Send this link to partners.
 
-### Mettre à jour les visuels
+Custom domain (optional): **Settings -> Pages -> Custom domain** (e.g. `visuels.blaguefriday.fr`), then add a CNAME record pointing to `your-account.github.io` at your domain registrar.
 
-Refaites **Add file → Upload files** avec les nouveaux fichiers, en gardant **les mêmes noms**. Ils remplacent les anciens. Le site est à jour en une ou deux minutes.
+**Updating visuals**: upload new files with **the same names**; they replace the old ones. Live in 1-2 minutes.
 
-### Espace graphistes
+## Designer space
 
-Ajoutez `#gabarit` à la fin de l'adresse : `https://…/visuels-blague-friday/#gabarit`.
-Les graphistes peuvent y choisir leur dossier **depuis leur ordinateur** (rien n'est envoyé), lire un rapport d'erreurs en français, afficher les zones et tester avec de faux logos et de faux jeux.
+`https://.../#designer` - password protected. Designers pick their folder **from their own computer** (nothing is uploaded), get a plain-English report, can show the zones and fill the preview with sample content.
 
-## Tester sur son ordinateur
+The password is only a curtain to keep the public out (the site is static and public, so it is not real security). To change it, replace `DESIGNER_PASSWORD_SHA256` in `index.html` with the output of `echo -n "new-password" | shasum -a 256`.
 
-Si vous ouvrez `index.html` par un double-clic, le navigateur bloque la lecture du dossier `visuels/`. Deux solutions :
-- ouvrez `index.html#gabarit` et choisissez le dossier `visuels/` à la main ;
-- ou lancez un petit serveur dans le dossier : `python3 -m http.server 8000`, puis ouvrez http://localhost:8000.
+## Reusing it for another event
 
-## Points de vigilance
+1. Replace everything in `assets/` (see `DESIGNER-GUIDE.md`) and edit `assets/settings.txt`.
+2. Change the password hash.
+3. Partner texts are in French in `index.html` (HTML and the "9. PRE-DOWNLOAD CHECKS" / "7. COVER" sections). Translate them there if your partners speak another language.
 
-- **Licence de la police** : la police est intégrée à une page web publique. Vérifiez que sa licence autorise l'usage « web / webfont » (c'est le cas des polices Google Fonts, par exemple).
-- **Limites GitHub Pages** : 1 Go par site et environ 100 Go de trafic par mois. C'est très large pour quelques images.
-- **Navigateurs** : Chrome, Edge, Firefox et Safari récents, sur ordinateur et sur mobile.
+## Notes
 
-## Pour le développeur
+- **Fonts**: Google Fonts are under the SIL Open Font License, so self-hosting them is fine. They are served from your site, not from Google (no third-party request, GDPR-friendly).
+- **GitHub Pages limits**: 1 GB per site, ~100 GB traffic per month. Plenty for a few images.
+- **Browsers**: recent Chrome, Edge, Firefox, Safari, desktop and mobile.
 
-- Tout se trouve dans `index.html` : HTML, CSS et environ 900 lignes de JavaScript sans framework, commentées et découpées en 12 sections.
-- Les zones sont lues dans `zones.png` (aplats de couleurs pures, tolérance de 70 sur la distance RGB) et réduites à leur rectangle englobant.
-- Le ZIP est écrit à la main, sans compression (le PNG est déjà compressé), avec le CRC32 et des noms de fichiers en UTF-8.
-- Aucune requête réseau à part la lecture de `visuels/` sur le même site.
+## For developers
+
+- Everything is in `index.html`: HTML, CSS and ~950 lines of framework-free JavaScript in 12 commented sections.
+- Zones are read from `zones.png` (pure color blobs, RGB distance tolerance 70) and reduced to their bounding box.
+- The ZIP is written by hand (store-only, PNGs are already compressed), with CRC32 and UTF-8 file names.
+- The only network requests are for `assets/` on the same origin.

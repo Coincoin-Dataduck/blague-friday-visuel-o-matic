@@ -5,18 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Générateur de visuels</title>
 <!--
-  Générateur de carrousels partenaires
-  ------------------------------------
-  - Un seul fichier, aucune dépendance externe, aucun serveur.
-  - Tout est calculé dans le navigateur : aucune image n'est envoyée ni stockée.
-  - Les visuels de l'événement sont lus dans le dossier ./visuels/ (voir README.md).
-  - Espace graphistes : ajouter #gabarit à l'adresse de la page.
+  Partner carousel generator
+  --------------------------
+  - One single file, no external dependency, no server.
+  - Everything is computed in the browser: no image is uploaded or stored.
+  - Event visuals are read from ./assets/ (see README.md).
+  - The partner-facing interface is in French (strings in this file).
+    The designer space and all code / docs are in English so others can reuse it.
+  - Designer space: add #designer to the page address (password protected).
 -->
 <style>
   :root {
-    --accent: #2783DE;
-    --accent-soft: #E5F2FC;
-    --text: #2C2C2B;
+    --accent: #005756;      /* Dark Slate Grey */
+    --accent-soft: #00575622;
+    --brand-dark: #002F2E;  /* Evergreen */
+    --brand-orange: #F28705;/* Tiger Orange */
+    --brand-green: #B8D18D; /* Willow Green */
+    --brand-yellow: #FAD752;/* Mustard */
+    --font-title: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --text: #002F2E;
     --text-2: #6B6863;
     --bg: #FFFFFF;
     --surface: #F9F8F7;
@@ -30,7 +38,7 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; }
   body {
-    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font: 16px/1.5 var(--font-body);
     color: var(--text); background: var(--bg);
   }
   .wrap { max-width: 1240px; margin: 0 auto; padding: 0 24px; }
@@ -39,8 +47,15 @@
   header.top { border-bottom: 1px solid var(--border); }
   header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 24px; padding-bottom: 24px; }
   .eyebrow { margin: 0 0 4px; font-size: 14px; font-weight: 600; color: var(--accent); letter-spacing: .02em; }
-  h1 { margin: 0; font-size: 28px; line-height: 1.2; letter-spacing: -.01em; }
-  h2 { margin: 0; font-size: 20px; line-height: 1.3; }
+  h1 { margin: 0; font-family: var(--font-title); font-weight: 400; font-size: 34px; line-height: 1.15; }
+  h2 { margin: 0; font-family: var(--font-title); font-weight: 400; font-size: 24px; line-height: 1.25; }
+  button, input { font-family: inherit; }
+  header.top { background: var(--brand-dark); color: #fff; border-bottom: 0; }
+  header.top .sub { color: var(--brand-green); }
+  header.top .eyebrow { color: var(--brand-yellow); }
+  .evt-logo { display: block; max-height: 56px; max-width: 260px; margin-bottom: 12px; }
+  .lock { max-width: 420px; margin: 64px auto; padding: 24px; border: 1px solid var(--border); border-radius: 12px; }
+  .lock h2 { margin-bottom: 8px; }
   .sub { margin: 4px 0 0; color: var(--text-2); }
 
   .layout { display: grid; grid-template-columns: minmax(320px, 420px) 1fr; gap: 48px; padding-top: 32px; padding-bottom: 64px; align-items: start; }
@@ -128,10 +143,10 @@
   .page figcaption { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 13px; color: var(--text-2); }
   .page figcaption button { min-height: 32px; padding: 4px 8px; font-size: 13px; }
 
-  .gabarit { background: var(--surface); border-bottom: 1px solid var(--border); }
-  .gabarit .wrap { padding-top: 24px; padding-bottom: 24px; }
-  .gabarit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
-  @media (max-width: 900px) { .gabarit-grid { grid-template-columns: 1fr; } }
+  .designer { background: var(--surface); border-bottom: 1px solid var(--border); }
+  .designer .wrap { padding-top: 24px; padding-bottom: 24px; }
+  .designer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
+  @media (max-width: 900px) { .designer-grid { grid-template-columns: 1fr; } }
   .report { list-style: none; margin: 0; padding: 0; font-size: 14px; }
   .report li { padding: 8px 12px; border-radius: var(--radius); margin-bottom: 6px; }
   .report li.ok { background: var(--ok-soft); color: #1F5E3E; }
@@ -156,6 +171,7 @@
 <header class="top">
   <div class="wrap">
     <div>
+      <img class="evt-logo" id="evtLogo" alt="" hidden>
       <p class="eyebrow" id="evtName">Chargement…</p>
       <h1 id="title">Créez votre carrousel en 3 étapes</h1>
       <p class="sub" id="subtitle">Ajoutez votre logo et vos jeux, téléchargez des visuels prêts à publier.</p>
@@ -163,28 +179,37 @@
   </div>
 </header>
 
-<!-- ====== Espace graphistes (visible avec #gabarit) ====== -->
-<section class="gabarit" id="gabaritBar" hidden>
-  <div class="wrap gabarit-grid">
+<!-- ====== Password gate for the designer space ====== -->
+<form class="lock" id="lock" hidden lang="en">
+  <h2>Designer space</h2>
+  <p class="hint">Enter the password to continue.</p>
+  <label style="margin-top:16px">Password<input type="password" id="pwd" autocomplete="current-password"></label>
+  <p class="msg err" id="pwdMsg" role="alert"></p>
+  <div class="row"><button class="btn primary" type="submit">Open</button><a class="btn secondary" href="./">Back to the partner tool</a></div>
+</form>
+
+<!-- ====== Designer space (visible with #designer) ====== -->
+<section class="designer" id="designerBar" hidden lang="en">
+  <div class="wrap designer-grid">
     <div>
-      <h2>Espace graphistes</h2>
-      <p class="hint">Choisissez votre dossier de visuels pour le vérifier. Rien n'est envoyé : tout reste sur votre ordinateur.</p>
+      <h2>Designer space</h2>
+      <p class="hint">Pick your assets folder to check it. Nothing is uploaded: everything stays on your computer.</p>
       <div class="row">
-        <label class="drop" style="flex:1; margin:0">Choisir mon dossier de visuels<small>Le dossier qui contient reglages.txt, couverture/, jeu/…</small>
+        <label class="drop" style="flex:1; margin:0">Choose my assets folder<small>The folder that contains settings.txt, cover/, game/…</small>
           <input type="file" id="folderInput" webkitdirectory directory multiple>
         </label>
       </div>
       <div class="row">
-        <button class="btn secondary small" id="fillDemo">Remplir avec des exemples</button>
-        <label class="check" style="margin:0"><input type="checkbox" id="showZones"> Afficher les zones</label>
+        <button class="btn secondary small" id="fillDemo">Fill with sample content</button>
+        <label class="check" style="margin:0"><input type="checkbox" id="showZones"> Show zones</label>
       </div>
       <div class="legend">
-        <span style="--c:#FF0000">Logo</span><span style="--c:#0000FF">Photo</span><span style="--c:#00FF00">Nom du jeu</span><span style="--c:#8000FF">Boîte</span><span style="--c:#FFFF00">Exemplaires</span>
+        <span style="--c:#FF0000">Logo</span><span style="--c:#0000FF">Photo</span><span style="--c:#00FF00">Game name</span><span style="--c:#8000FF">Game box</span><span style="--c:#FFFF00">Copies</span>
       </div>
     </div>
     <div>
-      <h2 style="font-size:16px; margin-bottom:12px">Vérification du dossier <span class="count" id="sourceName"></span></h2>
-      <ul class="report" id="report"><li class="info">Aucun dossier vérifié pour l'instant.</li></ul>
+      <h2 style="font-size:20px; margin-bottom:12px">Folder check <span class="count" id="sourceName"></span></h2>
+      <ul class="report" id="report"><li class="info">No folder checked yet.</li></ul>
     </div>
   </div>
 </section>
@@ -205,15 +230,15 @@
         <button type="button" data-type="personne" aria-pressed="false">Je suis une personne</button>
       </div>
 
-      <div id="marqueBox">
+      <div id="brandBox">
         <label class="drop">Choisir mon logo<small>PNG transparent conseillé · SVG, JPG acceptés</small>
           <input type="file" id="logoInput" accept="image/png,image/svg+xml,image/jpeg,image/webp">
         </label>
         <div class="msg" id="logoMsg" role="status"></div>
-        <label class="check" id="cartoucheRow" hidden><input type="checkbox" id="cartouche"> Ajouter un cartouche derrière le logo</label>
+        <label class="check" id="badgeRow" hidden><input type="checkbox" id="cartouche"> Ajouter un cartouche derrière le logo</label>
       </div>
 
-      <div id="personneBox" hidden>
+      <div id="personBox" hidden>
         <label class="drop">Choisir ma photo<small>Un portrait de bonne qualité, JPG ou PNG</small>
           <input type="file" id="photoInput" accept="image/png,image/jpeg,image/webp">
         </label>
@@ -253,7 +278,7 @@
 <footer>
   <div class="wrap">
     <span>Aucune donnée collectée. Aucun cookie.</span>
-    <a class="link" id="modeLink" href="#gabarit">Espace graphistes</a>
+    <a class="link" id="modeLink" href="./" hidden>Back to the partner tool</a>
   </div>
 </footer>
 
@@ -261,57 +286,80 @@
 "use strict";
 
 /* =====================================================================
-   1. RÉGLAGES PAR DÉFAUT ET LECTURE DE reglages.txt
+   1. DEFAULT SETTINGS AND settings.txt PARSER
    ===================================================================== */
 
 const DEFAULTS = {
-  nom: "Événement", annee: "", police: "", pagesFixes: [],
-  couleurNom: "#FFFFFF", majuscules: true, couleurEx: "#FFFFFF",
-  texte1: "1 exemplaire à gagner !", texteN: "[n] exemplaires à gagner !", maxJeux: 17,
-  couleurContour: "#FFFFFF", epaisseurContour: 12,
-  couleurCartouche: "#FFFFFF", arrondiCartouche: 24, margeCartouche: 30,
-  seuil: 2.5, minLogo: 800, minPhoto: 800, minBoite: 1000,
-  couleurInterface: "#2783DE",
+  eventName: "Event", year: "", titleFont: "", bodyFont: "", eventLogo: "", fixedPages: [],
+  nameColor: "#FFFFFF", uppercase: true, copiesColor: "#FFFFFF",
+  textOne: "1 exemplaire à gagner !", textMany: "[n] exemplaires à gagner !", maxGames: 17,
+  outlineColor: "#FFFFFF", outlineWidth: 12,
+  badgeColor: "#FFFFFF", badgeRadius: 24, badgePadding: 30,
+  readabilityThreshold: 2.5, minLogo: 800, minPhoto: 800, minBox: 1000,
+  uiColor: "#005756",
 };
 
-// Nom écrit dans reglages.txt (sans accents, majuscules) -> [clé interne, type]
+// Key as written in settings.txt (upper case, accents removed) -> [internal key, type]
 const KEYS = {
-  "NOM DE L'EVENEMENT": ["nom", "text"],
-  "ANNEE": ["annee", "text"],
-  "POLICE": ["police", "text"],
-  "PAGES FIXES": ["pagesFixes", "list"],
-  "COULEUR DU NOM DU JEU": ["couleurNom", "color"],
-  "NOM DU JEU EN MAJUSCULES": ["majuscules", "bool"],
-  "COULEUR DU NOMBRE D'EXEMPLAIRES": ["couleurEx", "color"],
-  "TEXTE POUR 1 EXEMPLAIRE": ["texte1", "text"],
-  "TEXTE POUR PLUSIEURS": ["texteN", "text"],
-  "NOMBRE MAXIMUM DE JEUX": ["maxJeux", "int"],
-  "COULEUR DU CONTOUR PHOTO": ["couleurContour", "color"],
-  "EPAISSEUR DU CONTOUR PHOTO": ["epaisseurContour", "num"],
-  "COULEUR DU CARTOUCHE DE SECOURS": ["couleurCartouche", "color"],
-  "ARRONDI DU CARTOUCHE": ["arrondiCartouche", "num"],
-  "MARGE DU CARTOUCHE": ["margeCartouche", "num"],
-  "SEUIL DE LISIBILITE": ["seuil", "num"],
+  "EVENT NAME": ["eventName", "text"],
+  "YEAR": ["year", "text"],
+  "EVENT LOGO": ["eventLogo", "text"],
+  "TITLE FONT": ["titleFont", "text"],
+  "BODY FONT": ["bodyFont", "text"],
+  "FIXED PAGES": ["fixedPages", "list"],
+  "GAME NAME COLOR": ["nameColor", "color"],
+  "GAME NAME IN CAPITALS": ["uppercase", "bool"],
+  "COPIES COLOR": ["copiesColor", "color"],
+  "TEXT FOR 1 COPY": ["textOne", "text"],
+  "TEXT FOR SEVERAL COPIES": ["textMany", "text"],
+  "MAX NUMBER OF GAMES": ["maxGames", "int"],
+  "PHOTO OUTLINE COLOR": ["outlineColor", "color"],
+  "PHOTO OUTLINE WIDTH": ["outlineWidth", "num"],
+  "FALLBACK BADGE COLOR": ["badgeColor", "color"],
+  "BADGE CORNER RADIUS": ["badgeRadius", "num"],
+  "BADGE PADDING": ["badgePadding", "num"],
+  "READABILITY THRESHOLD": ["readabilityThreshold", "num"],
+  "MIN LOGO SIZE": ["minLogo", "int"],
+  "MIN PHOTO SIZE": ["minPhoto", "int"],
+  "MIN BOX SIZE": ["minBox", "int"],
+  "INTERFACE COLOR": ["uiColor", "color"],
+  // Legacy French keys (still accepted)
+  "NOM DE L'EVENEMENT": ["eventName", "text"],
+  "ANNEE": ["year", "text"],
+  "POLICE": ["titleFont", "text"],
+  "PAGES FIXES": ["fixedPages", "list"],
+  "COULEUR DU NOM DU JEU": ["nameColor", "color"],
+  "NOM DU JEU EN MAJUSCULES": ["uppercase", "bool"],
+  "COULEUR DU NOMBRE D'EXEMPLAIRES": ["copiesColor", "color"],
+  "TEXTE POUR 1 EXEMPLAIRE": ["textOne", "text"],
+  "TEXTE POUR PLUSIEURS": ["textMany", "text"],
+  "NOMBRE MAXIMUM DE JEUX": ["maxGames", "int"],
+  "COULEUR DU CONTOUR PHOTO": ["outlineColor", "color"],
+  "EPAISSEUR DU CONTOUR PHOTO": ["outlineWidth", "num"],
+  "COULEUR DU CARTOUCHE DE SECOURS": ["badgeColor", "color"],
+  "ARRONDI DU CARTOUCHE": ["badgeRadius", "num"],
+  "MARGE DU CARTOUCHE": ["badgePadding", "num"],
+  "SEUIL DE LISIBILITE": ["readabilityThreshold", "num"],
   "TAILLE MINIMALE DU LOGO": ["minLogo", "int"],
   "TAILLE MINIMALE DE LA PHOTO": ["minPhoto", "int"],
-  "TAILLE MINIMALE DE LA BOITE": ["minBoite", "int"],
-  "COULEUR DE L'INTERFACE": ["couleurInterface", "color"],
+  "TAILLE MINIMALE DE LA BOITE": ["minBox", "int"],
+  "COULEUR DE L'INTERFACE": ["uiColor", "color"],
 };
 
 const normKey = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .replace(/[’`]/g, "'").toUpperCase().replace(/\s+/g, " ").trim();
 
-function parseReglages(text, report) {
-  const cfg = { ...DEFAULTS, pagesFixes: [] };
+function parseSettings(text, report) {
+  const cfg = { ...DEFAULTS, fixedPages: [] };
   text.split(/\r?\n/).forEach((raw, i) => {
     const line = raw.trim();
     if (!line || line.startsWith("#")) return;
     const idx = line.indexOf(":");
-    if (idx < 0) { report.push(["warn", `reglages.txt, ligne ${i + 1} : il manque les deux-points « : » (« ${line} »).`]); return; }
+    if (idx < 0) { report.push(["warn", `settings.txt, line ${i + 1}: missing colon ":" ("${line}").`]); return; }
     const key = normKey(line.slice(0, idx));
     const val = line.slice(idx + 1).trim();
     const def = KEYS[key];
-    if (!def) { report.push(["warn", `reglages.txt, ligne ${i + 1} : réglage inconnu « ${line.slice(0, idx).trim()} » (ignoré).`]); return; }
+    if (!def) { report.push(["warn", `settings.txt, line ${i + 1}: unknown setting "${line.slice(0, idx).trim()}" (ignored).`]); return; }
     const [k, type] = def;
     if (val === "") return;
     if (type === "text") cfg[k] = val;
@@ -320,25 +368,25 @@ function parseReglages(text, report) {
     else if (type === "color") {
       const c = val.startsWith("#") ? val : "#" + val;
       if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c)) cfg[k] = c;
-      else report.push(["warn", `reglages.txt, ligne ${i + 1} : « ${val} » n'est pas une couleur valide (format attendu : #FFE58A).`]);
+      else report.push(["warn", `settings.txt, line ${i + 1}: "${val}" is not a valid color (expected format: #FAD752).`]);
     } else {
       const n = parseFloat(val.replace(",", "."));
       if (isFinite(n)) cfg[k] = type === "int" ? Math.round(n) : n;
-      else report.push(["warn", `reglages.txt, ligne ${i + 1} : « ${val} » n'est pas un nombre.`]);
+      else report.push(["warn", `settings.txt, line ${i + 1}: "${val}" is not a number.`]);
     }
   });
   return cfg;
 }
 
 /* =====================================================================
-   2. SOURCES DE FICHIERS (site en ligne ou dossier local)
+   2. FILE SOURCES (hosted site or local folder)
    ===================================================================== */
 
 const httpSource = {
-  label: "visuels du site",
+  label: "hosted assets",
   async get(path) {
     try {
-      const r = await fetch("visuels/" + path, { cache: "no-cache" });
+      const r = await fetch("assets/" + path, { cache: "no-cache" });
       return r.ok ? await r.blob() : null;
     } catch (e) { return null; }
   },
@@ -346,18 +394,18 @@ const httpSource = {
 
 function folderSource(fileList) {
   const files = Array.from(fileList);
-  const anchor = files.find(f => /(^|\/)couverture\/fond\.png$/i.test(f.webkitRelativePath))
-    || files.find(f => /(^|\/)reglages\.txt$/i.test(f.webkitRelativePath));
+  const anchor = files.find(f => /(^|\/)cover\/background\.png$/i.test(f.webkitRelativePath))
+    || files.find(f => /(^|\/)settings\.txt$/i.test(f.webkitRelativePath));
   let prefix = "";
-  if (anchor) prefix = anchor.webkitRelativePath.replace(/(couverture\/fond\.png|reglages\.txt)$/i, "");
+  if (anchor) prefix = anchor.webkitRelativePath.replace(/(cover\/background\.png|settings\.txt)$/i, "");
   const map = {};
   files.forEach(f => {
     const p = f.webkitRelativePath;
     if (p.startsWith(prefix)) map[p.slice(prefix.length)] = f;
   });
-  const rootName = files[0] ? files[0].webkitRelativePath.split("/")[0] : "dossier";
+  const rootName = files[0] ? files[0].webkitRelativePath.split("/")[0] : "folder";
   return {
-    label: "dossier « " + rootName + " »",
+    label: 'folder "' + rootName + '"',
     map,
     async get(path) {
       if (map[path]) return map[path];
@@ -369,7 +417,7 @@ function folderSource(fileList) {
 }
 
 /* =====================================================================
-   3. OUTILS IMAGES
+   3. IMAGE HELPERS
    ===================================================================== */
 
 function loadImage(blob) {
@@ -384,7 +432,7 @@ function loadImage(blob) {
 const dims = im => ({ w: im.naturalWidth || im.width, h: im.naturalHeight || im.height });
 function newCanvas(w, h) { const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(h)); return c; }
 
-// Copie une image dans un canvas, en la réduisant si elle dépasse maxSide.
+// Copy an image into a canvas, downscaling it if it exceeds maxSide.
 function toCanvas(img, maxSide = 0) {
   let { w, h } = dims(img);
   const s = maxSide && Math.max(w, h) > maxSide ? maxSide / Math.max(w, h) : 1;
@@ -393,7 +441,7 @@ function toCanvas(img, maxSide = 0) {
   return c;
 }
 
-// Rectangle « contain » : l'image entière dans la zone, centrée.
+// "Contain" rectangle: whole image inside the zone, centred.
 function containRect(img, z) {
   const { w, h } = dims(img);
   const s = Math.min(z.w / w, z.h / h);
@@ -412,7 +460,7 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-// Part des pixels du bord de l'image qui sont transparents (0 à 1).
+// Share of transparent pixels on the image border (0 to 1).
 function borderTransparency(canvasOrImg) {
   const c = canvasOrImg instanceof HTMLCanvasElement ? canvasOrImg : toCanvas(canvasOrImg, 600);
   const { width: w, height: h } = c;
@@ -424,7 +472,7 @@ function borderTransparency(canvasOrImg) {
   return n ? t / n : 0;
 }
 
-// Recadre au plus près des pixels visibles.
+// Crop to the visible pixels.
 function trimCanvas(c) {
   const { width: w, height: h } = c;
   const d = c.getContext("2d").getImageData(0, 0, w, h).data;
@@ -438,13 +486,13 @@ function trimCanvas(c) {
   return out;
 }
 
-// Luminance relative (WCAG).
+// Relative luminance (WCAG).
 function lum(r, g, b) {
   const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
   return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
 }
 
-// Détourage sans IA n°1 : on retire le fond uni en partant des bords (baguette magique).
+// AI-free background removal #1: flood-fill a plain background from the borders (magic wand).
 function autoCut(src, tol) {
   const w = src.width, h = src.height;
   const out = newCanvas(w, h);
@@ -452,7 +500,7 @@ function autoCut(src, tol) {
   octx.drawImage(src, 0, 0);
   const img = octx.getImageData(0, 0, w, h);
   const d = img.data;
-  // Couleur du fond = médiane des pixels du bord
+  // Background color = median of the border pixels
   const rs = [], gs = [], bs = [];
   const sample = i => { rs.push(d[i]); gs.push(d[i + 1]); bs.push(d[i + 2]); };
   for (let x = 0; x < w; x += 2) { sample(x * 4); sample(((h - 1) * w + x) * 4); }
@@ -476,7 +524,7 @@ function autoCut(src, tol) {
       if (x > 0) push(p - 1); if (x < w - 1) push(p + 1);
       if (y > 0) push(p - w); if (y < h - 1) push(p + w);
     } else {
-      // bordure adoucie
+      // soft edge
       d[p * 4 + 3] = Math.min(d[p * 4 + 3], Math.round(255 * (dd - T) / (T2 - T)));
     }
   }
@@ -484,7 +532,7 @@ function autoCut(src, tol) {
   return out;
 }
 
-// Détourage sans IA n°2 : découpe selon les coins cliqués.
+// AI-free background removal #2: cut along the clicked corners.
 function polygonCut(src, pts) {
   const out = newCanvas(src.width, src.height);
   const ctx = out.getContext("2d");
@@ -496,13 +544,13 @@ function polygonCut(src, pts) {
   return out;
 }
 
-// Détection des zones de couleur dans zones.png
+// Colored zone detection in zones.png
 const ZONE_COLORS = {
   logo: { rgb: [255, 0, 0], label: "Logo", css: "#FF0000" },
   photo: { rgb: [0, 0, 255], label: "Photo", css: "#0000FF" },
-  nom: { rgb: [0, 255, 0], label: "Nom du jeu", css: "#00C800" },
-  boite: { rgb: [128, 0, 255], label: "Boîte", css: "#8000FF" },
-  ex: { rgb: [255, 255, 0], label: "Exemplaires", css: "#E6C800" },
+  name: { rgb: [0, 255, 0], label: "Game name", css: "#00C800" },
+  box: { rgb: [128, 0, 255], label: "Game box", css: "#8000FF" },
+  copies: { rgb: [255, 255, 0], label: "Copies", css: "#E6C800" },
 };
 function detectZones(img, keys) {
   const c = toCanvas(img);
@@ -530,17 +578,17 @@ function detectZones(img, keys) {
 }
 
 /* =====================================================================
-   4. ÉTAT DE L'APPLICATION
+   4. APP STATE
    ===================================================================== */
 
 const S = {
-  gabarit: /gabarit/i.test(location.hash + location.search),
+  designer: /designer|gabarit/i.test(location.hash + location.search),
   ready: false,
   cfg: { ...DEFAULTS },
-  A: {},           // images de l'événement
-  Z: {},           // zones détectées
+  A: {},           // event images
+  Z: {},           // detected zones
   W: 1080, H: 1350,
-  font: "sans-serif",
+  font: "sans-serif",      // title font, used on the visuals
   modes: ["marque", "personne"],
   type: "marque",
   logo: null, logoTransparent: false, logoContrast: null, cartouche: false,
@@ -548,99 +596,111 @@ const S = {
   games: [],
   showZones: false,
 };
-let gid = 0;
+let gid = 0, fontCounter = 0;
 const $ = id => document.getElementById(id);
 
 /* =====================================================================
-   5. CHARGEMENT ET VÉRIFICATION DU DOSSIER DE VISUELS
+   5. LOADING AND CHECKING THE ASSETS FOLDER
    ===================================================================== */
 
 async function loadAll(source) {
   const report = [];
   const A = {};
-  // Réglages
-  const regBlob = await source.get("reglages.txt");
+  // Settings
+  const regBlob = await source.get("settings.txt");
   let cfg;
-  if (regBlob) { cfg = parseReglages(await regBlob.text(), report); }
-  else { cfg = { ...DEFAULTS }; report.push(["warn", "reglages.txt introuvable : les valeurs par défaut sont utilisées."]); }
+  if (regBlob) { cfg = parseSettings(await regBlob.text(), report); }
+  else { cfg = { ...DEFAULTS }; report.push(["warn", "settings.txt not found: default values are used."]); }
 
   const files = [
-    ["covFond", "couverture/fond.png", true],
-    ["covZones", "couverture/zones.png", true],
-    ["covAP1", "couverture/avant-plan-un-lot.png", false],
-    ["covAPn", "couverture/avant-plan-des-lots.png", false],
-    ["jeuFond", "jeu/fond.png", true],
-    ["jeuZones", "jeu/zones.png", true],
-    ["jeuAP", "jeu/avant-plan.png", false],
+    ["coverBg", "cover/background.png", true],
+    ["coverZones", "cover/zones.png", true],
+    ["coverFgOne", "cover/foreground-one-prize.png", false],
+    ["coverFgMany", "cover/foreground-several-prizes.png", false],
+    ["gameBg", "game/background.png", true],
+    ["gameZones", "game/zones.png", true],
+    ["gameFg", "game/foreground.png", false],
   ];
   for (const [k, path, required] of files) {
     const b = await source.get(path);
-    if (!b) { if (required) report.push(["err", `Fichier manquant : ${path}`]); continue; }
-    try { A[k] = await loadImage(b); } catch (e) { report.push(["err", `Fichier illisible : ${path} (doit être un PNG).`]); }
+    if (!b) { if (required) report.push(["err", `Missing file: ${path}`]); continue; }
+    try { A[k] = await loadImage(b); } catch (e) { report.push(["err", `Unreadable file: ${path} (must be a PNG).`]); }
   }
-  if (!A.covAP1 && !A.covAPn) report.push(["warn", "Aucun avant-plan de couverture (avant-plan-un-lot.png / avant-plan-des-lots.png). La couverture n'aura pas de bulle."]);
-  else if (!A.covAP1 || !A.covAPn) report.push(["warn", `Il manque ${A.covAP1 ? "avant-plan-des-lots.png" : "avant-plan-un-lot.png"} : l'autre version sera utilisée dans tous les cas.`]);
-  if (!A.jeuAP) report.push(["info", "Pas de jeu/avant-plan.png (facultatif)."]);
+  if (!A.coverFgOne && !A.coverFgMany) report.push(["warn", "No cover foreground (foreground-one-prize.png / foreground-several-prizes.png). The cover will have no speech bubble."]);
+  else if (!A.coverFgOne || !A.coverFgMany) report.push(["warn", `${A.coverFgOne ? "foreground-several-prizes.png" : "foreground-one-prize.png"} is missing: the other version will always be used.`]);
+  if (!A.gameFg) report.push(["info", "No game/foreground.png (optional)."]);
 
-  // Pages fixes
+  // Fixed pages
   A.fixed = [];
-  for (const name of cfg.pagesFixes) {
-    const b = await source.get("pages-fixes/" + name);
-    if (!b) { report.push(["err", `Page fixe introuvable : pages-fixes/${name} (indiquée dans PAGES FIXES).`]); continue; }
-    try { A.fixed.push({ name, img: await loadImage(b) }); } catch (e) { report.push(["err", `Page fixe illisible : pages-fixes/${name}`]); }
+  for (const name of cfg.fixedPages) {
+    const b = await source.get("fixed-pages/" + name);
+    if (!b) { report.push(["err", `Fixed page not found: fixed-pages/${name} (listed in FIXED PAGES).`]); continue; }
+    try { A.fixed.push({ name, img: await loadImage(b) }); } catch (e) { report.push(["err", `Unreadable fixed page: fixed-pages/${name}`]); }
   }
-  if (!cfg.pagesFixes.length) report.push(["info", "Aucune page fixe indiquée (réglage PAGES FIXES)."]);
+  if (!cfg.fixedPages.length) report.push(["info", "No fixed page listed (FIXED PAGES setting)."]);
+
+  // Event logo (optional, shown in the page header)
+  A.logoEvtUrl = null;
+  if (cfg.eventLogo) {
+    const b = await source.get(cfg.eventLogo);
+    if (b) A.logoEvtUrl = URL.createObjectURL(b);
+    else report.push(["warn", `Event logo not found: ${cfg.eventLogo} (EVENT LOGO setting).`]);
+  }
 
   // Dimensions
   let W = 1080, H = 1350;
-  if (A.covFond) {
-    ({ w: W, h: H } = dims(A.covFond));
-    if (W !== 1080 || H !== 1350) report.push(["warn", `Le format est ${W}×${H} px. Pour Instagram, le format conseillé est 1080×1350 px.`]);
-    const all = [["couverture/zones.png", A.covZones], ["couverture/avant-plan-un-lot.png", A.covAP1], ["couverture/avant-plan-des-lots.png", A.covAPn],
-      ["jeu/fond.png", A.jeuFond], ["jeu/zones.png", A.jeuZones], ["jeu/avant-plan.png", A.jeuAP], ...A.fixed.map(f => ["pages-fixes/" + f.name, f.img])];
+  if (A.coverBg) {
+    ({ w: W, h: H } = dims(A.coverBg));
+    if (W !== 1080 || H !== 1350) report.push(["warn", `Format is ${W}×${H} px. For Instagram, 1080×1350 px is recommended.`]);
+    const all = [["cover/zones.png", A.coverZones], ["cover/foreground-one-prize.png", A.coverFgOne], ["cover/foreground-several-prizes.png", A.coverFgMany],
+      ["game/background.png", A.gameBg], ["game/zones.png", A.gameZones], ["game/foreground.png", A.gameFg], ...A.fixed.map(f => ["fixed-pages/" + f.name, f.img])];
     all.forEach(([p, im]) => {
       if (!im) return;
       const d = dims(im);
-      if (d.w !== W || d.h !== H) report.push(["err", `${p} fait ${d.w}×${d.h} px au lieu de ${W}×${H} px (comme couverture/fond.png).`]);
+      if (d.w !== W || d.h !== H) report.push(["err", `${p} is ${d.w}×${d.h} px instead of ${W}×${H} px (same as cover/background.png).`]);
     });
   }
 
   // Zones
   const Z = {};
   const modes = [];
-  if (A.covZones) {
-    Object.assign(Z, detectZones(A.covZones, ["logo", "photo"]));
+  if (A.coverZones) {
+    Object.assign(Z, detectZones(A.coverZones, ["logo", "photo"]));
     if (Z.logo) modes.push("marque");
     if (Z.photo) modes.push("personne");
-    if (!modes.length) report.push(["err", "couverture/zones.png : aucune zone rouge (logo) ni bleue (photo) trouvée."]);
-    else if (modes.length === 1) report.push(["info", `couverture/zones.png : seule la zone ${Z.logo ? "rouge (logo)" : "bleue (photo)"} est présente, seul le mode « ${Z.logo ? "marque" : "personne"} » sera proposé.`]);
+    if (!modes.length) report.push(["err", "cover/zones.png: no red (logo) or blue (photo) zone found."]);
+    else if (modes.length === 1) report.push(["info", `cover/zones.png: only the ${Z.logo ? "red (logo)" : "blue (photo)"} zone is present, so only the "${Z.logo ? "brand" : "person"}" mode will be offered.`]);
   }
-  if (A.jeuZones) {
-    Object.assign(Z, detectZones(A.jeuZones, ["nom", "boite", "ex"]));
-    if (!Z.nom) report.push(["err", "jeu/zones.png : pas de zone verte (nom du jeu) trouvée."]);
-    if (!Z.boite) report.push(["err", "jeu/zones.png : pas de zone violette (boîte) trouvée."]);
-    if (!Z.ex) report.push(["err", "jeu/zones.png : pas de zone jaune (nombre d'exemplaires) trouvée."]);
+  if (A.gameZones) {
+    Object.assign(Z, detectZones(A.gameZones, ["name", "box", "copies"]));
+    if (!Z.name) report.push(["err", "game/zones.png: no green zone (game name) found."]);
+    if (!Z.box) report.push(["err", "game/zones.png: no purple zone (game box) found."]);
+    if (!Z.copies) report.push(["err", "game/zones.png: no yellow zone (number of copies) found."]);
   }
-  Object.entries(Z).forEach(([k, z]) => { if (z.w < 60 || z.h < 30) report.push(["warn", `La zone « ${ZONE_COLORS[k].label} » est très petite (${z.w}×${z.h} px).`]); });
+  Object.entries(Z).forEach(([k, z]) => { if (z.w < 60 || z.h < 30) report.push(["warn", `The "${ZONE_COLORS[k].label}" zone is very small (${z.w}×${z.h} px).`]); });
 
-  // Police
-  let font = "sans-serif";
-  if (cfg.police) {
-    const b = await source.get("polices/" + cfg.police);
-    if (!b) report.push(["warn", `Police introuvable : polices/${cfg.police}. Une police de secours est utilisée.`]);
-    else {
-      try {
-        const family = "PoliceEvenement" + Date.now();
-        const ff = new FontFace(family, await b.arrayBuffer());
-        await ff.load(); document.fonts.add(ff);
-        font = `"${family}", sans-serif`;
-      } catch (e) { report.push(["warn", `La police polices/${cfg.police} est illisible (formats acceptés : OTF, TTF, WOFF, WOFF2).`]); }
-    }
-  } else report.push(["warn", "Aucune police indiquée (réglage POLICE) : une police de secours est utilisée."]);
+  // Fonts
+  async function loadFont(file, settingName, role) {
+    if (!file) { report.push(["warn", `No ${role} font set (${settingName} setting): a fallback font is used.`]); return null; }
+    const b = await source.get("fonts/" + file);
+    if (!b) { report.push(["warn", `Font not found: fonts/${file}. A fallback font is used.`]); return null; }
+    try {
+      const family = "EventFont" + (++fontCounter);
+      const ff = new FontFace(family, await b.arrayBuffer());
+      await ff.load(); document.fonts.add(ff);
+      return `"${family}"`;
+    } catch (e) { report.push(["warn", `Font fonts/${file} is unreadable (accepted: OTF, TTF, WOFF, WOFF2).`]); return null; }
+  }
+  const titleFam = await loadFont(cfg.titleFont, "TITLE FONT", "title");
+  const bodyFam = await loadFont(cfg.bodyFont, "BODY FONT", "body");
+  const font = titleFam ? `${titleFam}, sans-serif` : "sans-serif";
+  const SYS = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+  document.documentElement.style.setProperty("--font-title", titleFam ? `${titleFam}, ${SYS}` : SYS);
+  document.documentElement.style.setProperty("--font-body", bodyFam ? `${bodyFam}, ${SYS}` : SYS);
 
   const errors = report.filter(r => r[0] === "err").length;
-  if (!errors) report.unshift(["ok", "Le dossier est complet : tout est prêt. ✓"]);
-  else report.unshift(["err", `${errors} erreur(s) à corriger avant de livrer le dossier.`]);
+  if (!errors) report.unshift(["ok", "The folder is complete: everything is ready. ✓"]);
+  else report.unshift(["err", `${errors} error(s) to fix before delivering the folder.`]);
   return { report, A, Z, cfg, W, H, font, modes, errors };
 }
 
@@ -649,16 +709,16 @@ async function applySource(source) {
   Object.assign(S, { A: res.A, Z: res.Z, cfg: res.cfg, W: res.W, H: res.H, font: res.font, modes: res.modes });
   if (!S.modes.includes(S.type)) S.type = S.modes[0] || "marque";
   applyTheme();
-  if (S.gabarit) {
+  if (S.designer) {
     $("sourceName").textContent = "— " + source.label;
     $("report").innerHTML = "";
     res.report.forEach(([lvl, txt]) => { const li = document.createElement("li"); li.className = lvl; li.textContent = txt; $("report").appendChild(li); });
   }
-  const usable = S.A.covFond && S.A.jeuFond && S.modes.length && S.Z.nom && S.Z.boite && S.Z.ex;
+  const usable = S.A.coverBg && S.A.gameBg && S.modes.length && S.Z.name && S.Z.box && S.Z.copies;
   if (!usable) {
     S.ready = false;
     $("app").hidden = true;
-    if (!S.gabarit) showFatal(res.report);
+    if (!S.designer) showFatal(res.report);
     return;
   }
   $("fatal").hidden = true;
@@ -674,33 +734,35 @@ function showFatal(report) {
   const local = location.protocol === "file:";
   box.innerHTML = `<h2>L'outil n'est pas encore prêt</h2>
     <p class="hint">${local
-      ? "Vous avez ouvert le fichier directement depuis votre ordinateur : le navigateur bloque alors la lecture du dossier visuels/. Mettez l'outil en ligne (GitHub Pages) ou utilisez l'espace graphistes ci-dessous pour choisir le dossier à la main."
+      ? "Vous avez ouvert le fichier directement depuis votre ordinateur : le navigateur bloque alors la lecture du dossier assets/. Mettez l'outil en ligne (GitHub Pages) ou lancez un petit serveur local (voir README.md)."
       : "Les visuels de l'événement sont incomplets. Si vous êtes partenaire, contactez l'association. Si vous gérez l'outil, voici ce qui manque :"}</p>
     <ul>${report.filter(r => r[0] === "err").map(r => `<li>${escapeHtml(r[1])}</li>`).join("")}</ul>
-    <a class="btn secondary" href="#gabarit">Ouvrir l'espace graphistes</a>`;
+`;
   box.hidden = false;
 }
 const escapeHtml = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 function applyTheme() {
-  const c = S.cfg.couleurInterface || DEFAULTS.couleurInterface;
+  const c = S.cfg.uiColor || DEFAULTS.uiColor;
   document.documentElement.style.setProperty("--accent", c);
   document.documentElement.style.setProperty("--accent-soft", c + "22");
-  const evt = [S.cfg.nom, S.cfg.annee].filter(Boolean).join(" ");
-  $("evtName").textContent = evt + (S.gabarit ? " · Espace graphistes" : "");
+  const evt = [S.cfg.eventName, S.cfg.year].filter(Boolean).join(" ");
+  $("evtName").textContent = evt + (S.designer ? " · Designer space" : "");
+  const lg = $("evtLogo");
+  if (S.A.logoEvtUrl) { lg.src = S.A.logoEvtUrl; lg.alt = S.cfg.eventName; lg.hidden = false; } else lg.hidden = true;
   document.title = evt + " – Générateur de visuels";
 }
 
 /* =====================================================================
-   6. RENDU DES PAGES
+   6. PAGE RENDERING
    ===================================================================== */
 
-function totalLots() { return S.games.reduce((s, g) => s + (g.count > 0 ? g.count : 0), 0); }
+function totalCopies() { return S.games.reduce((s, g) => s + (g.count > 0 ? g.count : 0), 0); }
 
 function logoRect() {
   const z = S.Z.logo;
   if (!S.cartouche) return containRect(S.logo, z);
-  const m = S.cfg.margeCartouche;
+  const m = S.cfg.badgePadding;
   const inner = containRect(S.logo, { x: z.x + m, y: z.y + m, w: z.w - 2 * m, h: z.h - 2 * m });
   return inner;
 }
@@ -723,29 +785,29 @@ function drawPlaceholder(ctx, z, text, round) {
 
 function drawCover(ctx) {
   const { A, Z, cfg } = S;
-  ctx.drawImage(A.covFond, 0, 0, S.W, S.H);
+  ctx.drawImage(A.coverBg, 0, 0, S.W, S.H);
   if (S.type === "marque") {
     const z = Z.logo;
     if (!S.logo) drawPlaceholder(ctx, z, "Votre logo ici");
     else {
       const r = logoRect();
       if (S.cartouche) {
-        const m = cfg.margeCartouche;
-        ctx.fillStyle = cfg.couleurCartouche;
-        roundRect(ctx, r.x - m, r.y - m, r.w + 2 * m, r.h + 2 * m, cfg.arrondiCartouche);
+        const m = cfg.badgePadding;
+        ctx.fillStyle = cfg.badgeColor;
+        roundRect(ctx, r.x - m, r.y - m, r.w + 2 * m, r.h + 2 * m, cfg.badgeRadius);
         ctx.fill();
         ctx.drawImage(S.logo, r.x, r.y, r.w, r.h);
       } else if (!S.logoTransparent) {
-        ctx.save(); roundRect(ctx, r.x, r.y, r.w, r.h, cfg.arrondiCartouche); ctx.clip();
+        ctx.save(); roundRect(ctx, r.x, r.y, r.w, r.h, cfg.badgeRadius); ctx.clip();
         ctx.drawImage(S.logo, r.x, r.y, r.w, r.h); ctx.restore();
       } else ctx.drawImage(S.logo, r.x, r.y, r.w, r.h);
     }
   } else {
     const z = Z.photo;
     if (!S.photo) drawPlaceholder(ctx, z, "Votre photo ici", true);
-    else drawPhotoCircle(ctx, S.photo, z.x + z.w / 2, z.y + z.h / 2, Math.min(z.w, z.h), cfg.epaisseurContour, cfg.couleurContour);
+    else drawPhotoCircle(ctx, S.photo, z.x + z.w / 2, z.y + z.h / 2, Math.min(z.w, z.h), cfg.outlineWidth, cfg.outlineColor);
   }
-  const ap = totalLots() === 1 ? (A.covAP1 || A.covAPn) : (A.covAPn || A.covAP1);
+  const ap = totalCopies() === 1 ? (A.coverFgOne || A.coverFgMany) : (A.coverFgMany || A.coverFgOne);
   if (ap) ctx.drawImage(ap, 0, 0, S.W, S.H);
 }
 
@@ -766,7 +828,7 @@ function drawPhotoCircle(ctx, img, cx, cy, D, border, color) {
   }
 }
 
-// Texte ajusté automatiquement à la zone (taille + retour à la ligne).
+// Text auto-fitted to the zone (size + line wrapping).
 function fitText(ctx, text, z, color, maxLines, alpha = 1) {
   if (!text) return;
   const words = text.split(/\s+/).filter(Boolean);
@@ -794,20 +856,20 @@ function fitText(ctx, text, z, color, maxLines, alpha = 1) {
 
 function exText(n) {
   const { cfg } = S;
-  return (n === 1 ? cfg.texte1 : cfg.texteN).replace(/\[n\]|\{n\}/gi, String(n));
+  return (n === 1 ? cfg.textOne : cfg.textMany).replace(/\[n\]|\{n\}/gi, String(n));
 }
 
 function drawGame(ctx, g) {
   const { A, Z, cfg } = S;
-  ctx.drawImage(A.jeuFond, 0, 0, S.W, S.H);
-  if (g.cut) { const r = containRect(g.cut, Z.boite); ctx.drawImage(g.cut, r.x, r.y, r.w, r.h); }
-  else drawPlaceholder(ctx, Z.boite, "Photo de la boîte");
+  ctx.drawImage(A.gameBg, 0, 0, S.W, S.H);
+  if (g.cut) { const r = containRect(g.cut, Z.box); ctx.drawImage(g.cut, r.x, r.y, r.w, r.h); }
+  else drawPlaceholder(ctx, Z.box, "Photo de la boîte");
   let name = g.name.trim();
-  if (name) fitText(ctx, cfg.majuscules ? name.toLocaleUpperCase("fr-FR") : name, Z.nom, cfg.couleurNom, 2);
-  else fitText(ctx, cfg.majuscules ? "NOM DU JEU" : "Nom du jeu", Z.nom, cfg.couleurNom, 1, 0.45);
+  if (name) fitText(ctx, cfg.uppercase ? name.toLocaleUpperCase("fr-FR") : name, Z.name, cfg.nameColor, 2);
+  else fitText(ctx, cfg.uppercase ? "NOM DU JEU" : "Nom du jeu", Z.name, cfg.nameColor, 1, 0.45);
   const n = g.count > 0 ? g.count : 1;
-  fitText(ctx, exText(n), Z.ex, cfg.couleurEx, 1, g.count > 0 ? 1 : 0.45);
-  if (A.jeuAP) ctx.drawImage(A.jeuAP, 0, 0, S.W, S.H);
+  fitText(ctx, exText(n), Z.copies, cfg.copiesColor, 1, g.count > 0 ? 1 : 0.45);
+  if (A.gameFg) ctx.drawImage(A.gameFg, 0, 0, S.W, S.H);
 }
 
 function drawZonesOverlay(ctx, keys) {
@@ -822,7 +884,7 @@ function drawZonesOverlay(ctx, keys) {
     const label = `${c.label} · ${z.w}×${z.h}`;
     const tw = ctx.measureText(label).width;
     ctx.fillStyle = c.css; ctx.fillRect(z.x, z.y - 42, tw + 20, 42);
-    ctx.fillStyle = k === "ex" || k === "nom" ? "#000" : "#fff";
+    ctx.fillStyle = k === "copies" || k === "name" ? "#000" : "#fff";
     ctx.textBaseline = "middle"; ctx.fillText(label, z.x + 10, z.y - 21);
   });
   ctx.restore();
@@ -839,7 +901,7 @@ function renderPage(p, overlay) {
   const c = newCanvas(S.W, S.H);
   const ctx = c.getContext("2d");
   if (p.kind === "cover") { drawCover(ctx); if (overlay) drawZonesOverlay(ctx, S.type === "marque" ? ["logo"] : ["photo"]); }
-  else if (p.kind === "game") { drawGame(ctx, p.g); if (overlay) drawZonesOverlay(ctx, ["nom", "boite", "ex"]); }
+  else if (p.kind === "game") { drawGame(ctx, p.g); if (overlay) drawZonesOverlay(ctx, ["name", "box", "copies"]); }
   else ctx.drawImage(p.f.img, 0, 0, S.W, S.H);
   return c;
 }
@@ -884,7 +946,7 @@ function renderPreviews() {
 }
 
 /* =====================================================================
-   7. COUVERTURE : LOGO OU PHOTO
+   7. COVER: LOGO OR PHOTO
    ===================================================================== */
 
 function setMsg(el, level, html) { el.className = "msg " + (level || ""); el.innerHTML = html || ""; }
@@ -893,17 +955,17 @@ function syncTypeUI() {
   const seg = $("typeSeg");
   seg.hidden = S.modes.length < 2;
   seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.type === S.type)));
-  $("marqueBox").hidden = S.type !== "marque";
-  $("personneBox").hidden = S.type !== "personne";
+  $("brandBox").hidden = S.type !== "marque";
+  $("personBox").hidden = S.type !== "personne";
 }
 
-// Contraste moyen entre les pixels du logo et le fond réel situé dessous.
+// Mean contrast between logo pixels and the actual background underneath.
 function computeLogoContrast() {
   const z = S.Z.logo;
   const r = containRect(S.logo, z);
   const w = Math.max(1, Math.round(r.w)), h = Math.max(1, Math.round(r.h));
   const bgC = newCanvas(w, h), lgC = newCanvas(w, h);
-  bgC.getContext("2d").drawImage(S.A.covFond, r.x, r.y, r.w, r.h, 0, 0, w, h);
+  bgC.getContext("2d").drawImage(S.A.coverBg, r.x, r.y, r.w, r.h, 0, 0, w, h);
   lgC.getContext("2d").drawImage(S.logo, 0, 0, w, h);
   const bd = bgC.getContext("2d").getImageData(0, 0, w, h).data;
   const ld = lgC.getContext("2d").getImageData(0, 0, w, h).data;
@@ -919,21 +981,21 @@ function computeLogoContrast() {
 async function evaluateLogo() {
   const msg = $("logoMsg");
   S.logoTransparent = borderTransparency(S.logo) > 0.3;
-  $("cartoucheRow").hidden = !S.logoTransparent;
+  $("badgeRow").hidden = !S.logoTransparent;
   if (!S.logoTransparent) {
     S.cartouche = false; $("cartouche").checked = false; S.logoContrast = null;
     setMsg(msg, "ok", "Logo ajouté. Il n'est pas transparent : il sera affiché comme un cartouche aux coins arrondis.");
     return;
   }
   S.logoContrast = computeLogoContrast();
-  const ok = S.logoContrast === null || S.logoContrast >= S.cfg.seuil;
+  const ok = S.logoContrast === null || S.logoContrast >= S.cfg.readabilityThreshold;
   if (ok || S.cartouche) {
     setMsg(msg, "ok", S.cartouche ? "Logo ajouté avec un cartouche." : "Logo ajouté : il ressort bien sur le fond. ✓");
   } else {
     setMsg(msg, "err", `<strong>Votre logo ressort mal sur le fond</strong> et sera difficile à lire. Choisissez une solution pour continuer :
-      <div class="row"><button type="button" class="btn small primary" id="addCartouche">Ajouter un cartouche</button>
+      <div class="row"><button type="button" class="btn small primary" id="addBadge">Ajouter un cartouche</button>
       <label class="btn small secondary" style="margin:0; position:relative">Envoyer une autre version (claire ou blanche)<input type="file" accept="image/png,image/svg+xml,image/webp" style="position:absolute; inset:0; opacity:0" id="logoInput2"></label></div>`);
-    $("addCartouche").onclick = () => { S.cartouche = true; $("cartouche").checked = true; evaluateLogo(); update(); };
+    $("addBadge").onclick = () => { S.cartouche = true; $("cartouche").checked = true; evaluateLogo(); update(); };
     $("logoInput2").onchange = e => handleLogo(e.target.files[0]);
   }
 }
@@ -949,7 +1011,7 @@ async function handleLogo(file) {
     setMsg(msg, "err", `Ce logo est trop petit (${w}×${h} px) : il serait flou. Envoyez une version d'au moins ${S.cfg.minLogo} px de large, ou un fichier SVG.`);
     return;
   }
-  // Les SVG sont convertis en image haute définition.
+  // SVGs are rasterised in high definition.
   if (isSvg) {
     const s = 1600 / Math.max(w || 1, h || 1);
     const c = newCanvas((w || 1600) * s, (h || 1600) * s);
@@ -1001,10 +1063,10 @@ function initPhotoDrag() {
 }
 
 /* =====================================================================
-   8. JEUX ET DÉTOURAGE
+   8. GAMES AND BACKGROUND REMOVAL
    ===================================================================== */
 
-function maxGames() { return Math.max(1, Math.min(S.cfg.maxJeux, 20 - 1 - (S.A.fixed || []).length)); }
+function maxGames() { return Math.max(1, Math.min(S.cfg.maxGames, 20 - 1 - (S.A.fixed || []).length)); }
 
 function addGame(prefill) {
   if (S.games.length >= maxGames()) return;
@@ -1058,18 +1120,18 @@ function buildGameCard(g) {
   q('[data-f="count"]').addEventListener("input", e => { g.count = parseInt(e.target.value, 10) || 0; update(); });
   q('[data-f="file"]').addEventListener("change", e => handleBox(g, e.target.files[0]));
   q('[data-act="del"]').addEventListener("click", () => { S.games = S.games.filter(x => x !== g); el.remove(); update(); });
-  el.querySelectorAll("[data-tab]").forEach(b => b.addEventListener("click", () => { g.tab = b.dataset.tab; refreshDetour(g); }));
+  el.querySelectorAll("[data-tab]").forEach(b => b.addEventListener("click", () => { g.tab = b.dataset.tab; refreshCutout(g); }));
   let tolTimer;
-  q('[data-f="tol"]').addEventListener("input", e => { g.tol = +e.target.value; clearTimeout(tolTimer); tolTimer = setTimeout(() => refreshDetour(g), 80); });
+  q('[data-f="tol"]').addEventListener("input", e => { g.tol = +e.target.value; clearTimeout(tolTimer); tolTimer = setTimeout(() => refreshCutout(g), 80); });
   const pc = q(".pcanvas");
   pc.addEventListener("click", e => {
     const r = pc.getBoundingClientRect();
     g.pts.push({ x: (e.clientX - r.left) / r.width * pc.width, y: (e.clientY - r.top) / r.height * pc.height });
-    refreshDetour(g);
+    refreshCutout(g);
   });
-  q('[data-act="undo"]').addEventListener("click", () => { g.pts.pop(); refreshDetour(g); });
-  q('[data-act="reset"]').addEventListener("click", () => { g.pts = []; refreshDetour(g); });
-  q('[data-act="validate"]').addEventListener("click", () => validateDetour(g));
+  q('[data-act="undo"]').addEventListener("click", () => { g.pts.pop(); refreshCutout(g); });
+  q('[data-act="reset"]').addEventListener("click", () => { g.pts = []; refreshCutout(g); });
+  q('[data-act="validate"]').addEventListener("click", () => validateCutout(g));
   q('[data-act="redo"]').addEventListener("click", () => { g.status = "detour"; g.cut = null; refreshGameCard(g); update(); });
   $("games").appendChild(el);
   refreshGameCard(g);
@@ -1081,8 +1143,8 @@ async function handleBox(g, file) {
   let img;
   try { img = await loadImage(file); } catch (e) { setMsg(msgEl, "err", "Ce fichier n'est pas une image lisible."); return; }
   const { w, h } = dims(img);
-  if (Math.max(w, h) < S.cfg.minBoite) {
-    setMsg(msgEl, "err", `Cette image est trop petite (${w}×${h} px) : la boîte serait floue. Il faut au moins ${S.cfg.minBoite} px sur le côté le plus grand. Demandez le packshot haute définition à l'éditeur.`);
+  if (Math.max(w, h) < S.cfg.minBox) {
+    setMsg(msgEl, "err", `Cette image est trop petite (${w}×${h} px) : la boîte serait floue. Il faut au moins ${S.cfg.minBox} px sur le côté le plus grand. Demandez le packshot haute définition à l'éditeur.`);
     return;
   }
   g.work = toCanvas(img, 1400);
@@ -1100,7 +1162,7 @@ async function handleBox(g, file) {
   update();
 }
 
-function refreshDetour(g) {
+function refreshCutout(g) {
   const el = g.el;
   if (!g.work) return;
   el.querySelectorAll("[data-tab]").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === g.tab)));
@@ -1139,7 +1201,7 @@ function refreshDetour(g) {
   el.querySelector('[data-act="validate"]').disabled = false;
 }
 
-function validateDetour(g) {
+function validateCutout(g) {
   const msgEl = g.el.querySelector('[data-f="msg"]');
   let res;
   if (g.tab === "auto") {
@@ -1166,7 +1228,7 @@ function refreshGameCard(g) {
   el.querySelector(".done").hidden = g.status !== "ok";
   el.querySelector(".droptext").textContent = g.work || g.cut ? "Changer la photo de la boîte" : "Photo de la boîte";
   el.querySelector('[data-act="redo"]').hidden = !g.work;
-  if (g.status === "detour") requestAnimationFrame(() => refreshDetour(g));
+  if (g.status === "detour") requestAnimationFrame(() => refreshCutout(g));
   if (g.status === "ok" && g.cut) {
     const tc = el.querySelector(".thumb canvas");
     const s = 64 / Math.max(g.cut.width, g.cut.height);
@@ -1176,14 +1238,14 @@ function refreshGameCard(g) {
 }
 
 /* =====================================================================
-   9. VÉRIFICATIONS AVANT TÉLÉCHARGEMENT
+   9. PRE-DOWNLOAD CHECKS (partner-facing, French)
    ===================================================================== */
 
 function problems() {
   const out = [];
   if (S.type === "marque") {
     if (!S.logo) out.push("Ajoutez votre logo.");
-    else if (S.logoTransparent && S.logoContrast !== null && S.logoContrast < S.cfg.seuil && !S.cartouche) out.push("Votre logo ressort mal sur le fond : ajoutez un cartouche ou envoyez une autre version.");
+    else if (S.logoTransparent && S.logoContrast !== null && S.logoContrast < S.cfg.readabilityThreshold && !S.cartouche) out.push("Votre logo ressort mal sur le fond : ajoutez un cartouche ou envoyez une autre version.");
   } else if (!S.photo) out.push("Ajoutez votre photo.");
   if (!S.games.length) out.push("Ajoutez au moins un jeu.");
   S.games.forEach((g, i) => {
@@ -1215,7 +1277,7 @@ function update() {
 }
 
 /* =====================================================================
-   10. EXPORT : PNG ET ZIP (format ZIP sans compression, fait maison)
+   10. EXPORT: PNG AND ZIP (hand-written, store-only ZIP)
    ===================================================================== */
 
 const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
@@ -1258,7 +1320,7 @@ function saveBlob(blob, name) {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
-function baseName() { return [slug(S.cfg.nom), S.cfg.annee, slug($("partnerName").value) || "partenaire"].filter(Boolean).join("-"); }
+function baseName() { return [slug(S.cfg.eventName), S.cfg.year, slug($("partnerName").value) || "partenaire"].filter(Boolean).join("-"); }
 
 async function downloadAll() {
   if (problems().length) return;
@@ -1280,7 +1342,7 @@ async function downloadOne(i) {
 }
 
 /* =====================================================================
-   11. EXEMPLES POUR L'ESPACE GRAPHISTES
+   11. SAMPLE CONTENT FOR THE DESIGNER SPACE
    ===================================================================== */
 
 function fakeLogo() {
@@ -1314,14 +1376,17 @@ async function fillDemo() {
 }
 
 /* =====================================================================
-   12. DÉMARRAGE
+   12. STARTUP
    ===================================================================== */
 
 function init() {
-  $("gabaritBar").hidden = !S.gabarit;
-  $("modeLink").textContent = S.gabarit ? "Retour à l'outil partenaires" : "Espace graphistes";
-  $("modeLink").href = S.gabarit ? location.pathname : "#gabarit";
-  if (S.gabarit) { $("title").textContent = "Vérifiez votre dossier de visuels"; $("subtitle").textContent = "Testez le rendu avec de faux logos et de faux jeux avant de livrer."; }
+  $("designerBar").hidden = !S.designer;
+  $("modeLink").hidden = !S.designer;
+  if (S.designer) {
+    document.documentElement.lang = "en";
+    $("title").textContent = "Check your assets folder";
+    $("subtitle").textContent = "Preview the result with sample logos and games before delivering.";
+  }
 
   $("typeSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.type = b.dataset.type; syncTypeUI(); update(); });
   $("logoInput").addEventListener("change", e => handleLogo(e.target.files[0]));
@@ -1339,7 +1404,39 @@ function init() {
     if (S.ready && !S.games.length) addGame();
   });
 }
-init();
+/* ---------------------------------------------------------------------
+   Designer space password.
+   This is NOT real security (the site is static and public): it only keeps
+   curious visitors out. To change it, put the SHA-256 of the new password
+   here, e.g. in a terminal:  echo -n "new-password" | shasum -a 256
+   --------------------------------------------------------------------- */
+const DESIGNER_PASSWORD_SHA256 = "dee348da85f9bef782a4104088e5b5b2af5409d7c7213832c300438acacd35c7";
+
+async function sha256(text) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function start() {
+  if (!S.designer || sessionStorage.getItem("designerOk") === DESIGNER_PASSWORD_SHA256) { init(); return; }
+  document.documentElement.lang = "en";
+  document.querySelector("header.top").hidden = true;
+  document.querySelector("footer").hidden = true;
+  $("lock").hidden = false;
+  $("pwd").focus();
+  $("lock").addEventListener("submit", async e => {
+    e.preventDefault();
+    if (!window.crypto || !crypto.subtle) { $("pwdMsg").textContent = "Open this page over https (or localhost) to unlock it."; return; }
+    if (await sha256($("pwd").value) === DESIGNER_PASSWORD_SHA256) {
+      sessionStorage.setItem("designerOk", DESIGNER_PASSWORD_SHA256);
+      $("lock").hidden = true;
+      document.querySelector("header.top").hidden = false;
+      document.querySelector("footer").hidden = false;
+      init();
+    } else { $("pwdMsg").textContent = "Wrong password."; $("pwd").select(); }
+  });
+}
+start();
 </script>
 </body>
 </html>
