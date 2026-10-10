@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Générateur de visuels</title>
+<!--
+  Générateur de carrousels partenaires
+  ------------------------------------
+  - Un seul fichier, aucune dépendance externe, aucun serveur.
+  - Tout est calculé dans le navigateur : aucune image n'est envoyée ni stockée.
+  - Les visuels de l'événement sont lus dans le dossier ./visuels/ (voir README.md).
+  - Espace graphistes : ajouter #gabarit à l'adresse de la page.
+-->
+<style>
+  :root {
+    --accent: #2783DE;
+    --accent-soft: #E5F2FC;
+    --text: #2C2C2B;
+    --text-2: #6B6863;
+    --bg: #FFFFFF;
+    --surface: #F9F8F7;
+    --surface-2: #F0EFED;
+    --border: #E6E5E3;
+    --ok: #2F8A5B; --ok-soft: #E8F1EC;
+    --warn: #B4641F; --warn-soft: #FBEBDE;
+    --err: #C9443A; --err-soft: #FCE9E7;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--text); background: var(--bg);
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 24px; }
+  [hidden] { display: none !important; }
+
+  header.top { border-bottom: 1px solid var(--border); }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 24px; padding-bottom: 24px; }
+  .eyebrow { margin: 0 0 4px; font-size: 14px; font-weight: 600; color: var(--accent); letter-spacing: .02em; }
+  h1 { margin: 0; font-size: 28px; line-height: 1.2; letter-spacing: -.01em; }
+  h2 { margin: 0; font-size: 20px; line-height: 1.3; }
+  .sub { margin: 4px 0 0; color: var(--text-2); }
+
+  .layout { display: grid; grid-template-columns: minmax(320px, 420px) 1fr; gap: 48px; padding-top: 32px; padding-bottom: 64px; align-items: start; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; gap: 32px; } }
+
+  .step { padding: 24px 0; border-bottom: 1px solid var(--border); }
+  .step:first-child { padding-top: 0; }
+  .step:last-child { border-bottom: 0; }
+  .step h2 { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .num { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 15px; font-weight: 700; flex: none; }
+
+  label { display: block; font-size: 14px; font-weight: 600; margin: 0 0 12px; }
+  input[type=text], input[type=number], input:not([type]) {
+    display: block; width: 100%; margin-top: 6px; min-height: 44px; padding: 8px 12px;
+    font: inherit; font-weight: 400; color: var(--text); background: #fff;
+    border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  input:focus-visible, button:focus-visible, .drop:focus-within { outline: 3px solid var(--accent-soft); outline-offset: 1px; border-color: var(--accent); }
+  input[type=range] { width: 100%; margin-top: 8px; accent-color: var(--accent); }
+  .hint { margin: 8px 0 0; font-size: 14px; color: var(--text-2); font-weight: 400; }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px; font: inherit; font-weight: 600; border-radius: var(--radius); border: 1px solid transparent; cursor: pointer; }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.primary:hover { filter: brightness(.94); }
+  .btn.primary:disabled { background: var(--surface-2); color: #9b9893; cursor: not-allowed; filter: none; }
+  .btn.secondary { background: #fff; color: var(--text); border-color: var(--border); }
+  .btn.secondary:hover { background: var(--surface); }
+  .btn.small { min-height: 40px; padding: 8px 12px; font-size: 14px; }
+  .btn.block { width: 100%; }
+  .link { background: none; border: 0; padding: 8px; min-height: 40px; font: inherit; font-size: 14px; color: var(--text-2); cursor: pointer; text-decoration: underline; }
+  .link.danger { color: var(--err); }
+  a.link { display: inline-flex; align-items: center; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: var(--radius); padding: 4px; background: var(--surface); margin-bottom: 16px; }
+  .seg button { min-height: 40px; border: 0; border-radius: 6px; background: transparent; font: inherit; font-size: 15px; font-weight: 600; color: var(--text-2); cursor: pointer; }
+  .seg button[aria-pressed=true] { background: #fff; color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+
+  .drop { position: relative; display: flex; flex-direction: column; gap: 2px; align-items: center; justify-content: center; min-height: 64px; padding: 12px; border: 1.5px dashed #CFCDC9; border-radius: var(--radius); background: var(--surface); color: var(--text); font-weight: 600; text-align: center; cursor: pointer; }
+  .drop:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+  .drop small { display: block; font-weight: 400; color: var(--text-2); font-size: 13px; }
+
+  .msg { margin: 12px 0 0; padding: 10px 12px; border-radius: var(--radius); font-size: 14px; }
+  .msg:empty { display: none; }
+  .msg.ok { background: var(--ok-soft); color: #1F5E3E; }
+  .msg.warn { background: var(--warn-soft); color: #7A4314; }
+  .msg.err { background: var(--err-soft); color: #8F2C24; }
+  .msg .row { margin-top: 8px; }
+
+  .check { display: flex; gap: 10px; align-items: center; font-weight: 400; margin-top: 12px; min-height: 44px; }
+  .check input { width: 20px; height: 20px; accent-color: var(--accent); }
+
+  .checker { background-color: #fff; background-image: conic-gradient(#E9E8E6 25%, #fff 0 50%, #E9E8E6 0 75%, #fff 0); background-size: 20px 20px; }
+  .photo-editor { margin-top: 16px; }
+  .photo-editor canvas { display: block; width: 220px; height: 220px; margin: 0 auto; border-radius: 50%; touch-action: none; cursor: grab; border: 1px solid var(--border); }
+
+  .game { border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; background: #fff; }
+  .game-head { display: flex; align-items: center; justify-content: space-between; margin: -8px 0 8px; }
+  .game-grid { display: grid; grid-template-columns: 1fr 120px; gap: 12px; }
+  .game-grid label { margin-bottom: 12px; }
+  .detour { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .detour h3 { margin: 0 0 8px; font-size: 15px; }
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: var(--radius); padding: 4px; background: var(--surface); margin-bottom: 12px; }
+  .tabs button { min-height: 40px; border: 0; border-radius: 6px; background: transparent; font: inherit; font-size: 14px; font-weight: 600; color: var(--text-2); cursor: pointer; }
+  .tabs button[aria-selected=true] { background: #fff; color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .dcanvas, .pcanvas { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  .pcanvas { cursor: crosshair; touch-action: none; }
+  .done { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+  .thumb { width: 72px; height: 72px; border-radius: var(--radius); border: 1px solid var(--border); display: grid; place-items: center; overflow: hidden; flex: none; }
+  .thumb canvas { max-width: 64px; max-height: 64px; }
+
+  .checklist { list-style: none; margin: 0 0 16px; padding: 0; font-size: 14px; }
+  .checklist li { display: flex; gap: 8px; padding: 6px 0; }
+  .checklist li::before { content: "•"; color: var(--err); font-weight: 700; }
+  .checklist li.okline::before { content: "✓"; color: var(--ok); }
+
+  .preview { position: sticky; top: 24px; }
+  @media (max-width: 900px) { .preview { position: static; } }
+  .preview-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
+  .count { font-size: 14px; color: var(--text-2); }
+  .pages { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
+  .page { margin: 0; }
+  .page canvas { display: block; width: 100%; height: auto; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); }
+  .page figcaption { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 13px; color: var(--text-2); }
+  .page figcaption button { min-height: 32px; padding: 4px 8px; font-size: 13px; }
+
+  .gabarit { background: var(--surface); border-bottom: 1px solid var(--border); }
+  .gabarit .wrap { padding-top: 24px; padding-bottom: 24px; }
+  .gabarit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
+  @media (max-width: 900px) { .gabarit-grid { grid-template-columns: 1fr; } }
+  .report { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+  .report li { padding: 8px 12px; border-radius: var(--radius); margin-bottom: 6px; }
+  .report li.ok { background: var(--ok-soft); color: #1F5E3E; }
+  .report li.warn { background: var(--warn-soft); color: #7A4314; }
+  .report li.err { background: var(--err-soft); color: #8F2C24; }
+  .report li.info { background: #fff; border: 1px solid var(--border); color: var(--text-2); }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 12px; font-size: 13px; color: var(--text-2); }
+  .legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; background: var(--c); }
+
+  .fatal { max-width: 640px; margin: 64px auto; padding: 24px; border: 1px solid var(--border); border-radius: 12px; }
+  .fatal h2 { margin-bottom: 8px; }
+  .fatal ul { padding-left: 20px; color: var(--text-2); font-size: 14px; }
+
+  footer { border-top: 1px solid var(--border); }
+  footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding-top: 16px; padding-bottom: 24px; font-size: 14px; color: var(--text-2); }
+  @media (max-width: 600px) { .wrap { padding: 0 16px; } h1 { font-size: 24px; } .game-grid { grid-template-columns: 1fr 96px; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div>
+      <p class="eyebrow" id="evtName">Chargement…</p>
+      <h1 id="title">Créez votre carrousel en 3 étapes</h1>
+      <p class="sub" id="subtitle">Ajoutez votre logo et vos jeux, téléchargez des visuels prêts à publier.</p>
+    </div>
+  </div>
+</header>
+
+<!-- ====== Espace graphistes (visible avec #gabarit) ====== -->
+<section class="gabarit" id="gabaritBar" hidden>
+  <div class="wrap gabarit-grid">
+    <div>
+      <h2>Espace graphistes</h2>
+      <p class="hint">Choisissez votre dossier de visuels pour le vérifier. Rien n'est envoyé : tout reste sur votre ordinateur.</p>
+      <div class="row">
+        <label class="drop" style="flex:1; margin:0">Choisir mon dossier de visuels<small>Le dossier qui contient reglages.txt, couverture/, jeu/…</small>
+          <input type="file" id="folderInput" webkitdirectory directory multiple>
+        </label>
+      </div>
+      <div class="row">
+        <button class="btn secondary small" id="fillDemo">Remplir avec des exemples</button>
+        <label class="check" style="margin:0"><input type="checkbox" id="showZones"> Afficher les zones</label>
+      </div>
+      <div class="legend">
+        <span style="--c:#FF0000">Logo</span><span style="--c:#0000FF">Photo</span><span style="--c:#00FF00">Nom du jeu</span><span style="--c:#8000FF">Boîte</span><span style="--c:#FFFF00">Exemplaires</span>
+      </div>
+    </div>
+    <div>
+      <h2 style="font-size:16px; margin-bottom:12px">Vérification du dossier <span class="count" id="sourceName"></span></h2>
+      <ul class="report" id="report"><li class="info">Aucun dossier vérifié pour l'instant.</li></ul>
+    </div>
+  </div>
+</section>
+
+<div class="fatal" id="fatal" hidden></div>
+
+<main class="wrap layout" id="app" hidden>
+  <section aria-label="Étapes">
+    <!-- Étape 1 -->
+    <div class="step">
+      <h2><span class="num">1</span> Votre couverture</h2>
+      <label>Votre nom ou celui de votre marque
+        <input type="text" id="partnerName" maxlength="60" placeholder="Ex. Double Combo Games">
+        <span class="hint" style="display:block">Sert uniquement à nommer vos fichiers.</span>
+      </label>
+      <div class="seg" role="group" aria-label="Type de partenaire" id="typeSeg">
+        <button type="button" data-type="marque" aria-pressed="true">Je suis une marque</button>
+        <button type="button" data-type="personne" aria-pressed="false">Je suis une personne</button>
+      </div>
+
+      <div id="marqueBox">
+        <label class="drop">Choisir mon logo<small>PNG transparent conseillé · SVG, JPG acceptés</small>
+          <input type="file" id="logoInput" accept="image/png,image/svg+xml,image/jpeg,image/webp">
+        </label>
+        <div class="msg" id="logoMsg" role="status"></div>
+        <label class="check" id="cartoucheRow" hidden><input type="checkbox" id="cartouche"> Ajouter un cartouche derrière le logo</label>
+      </div>
+
+      <div id="personneBox" hidden>
+        <label class="drop">Choisir ma photo<small>Un portrait de bonne qualité, JPG ou PNG</small>
+          <input type="file" id="photoInput" accept="image/png,image/jpeg,image/webp">
+        </label>
+        <div class="msg" id="photoMsg" role="status"></div>
+        <div class="photo-editor" id="photoEditor" hidden>
+          <canvas id="photoCanvas" width="440" height="440" aria-label="Cadrage de la photo : faites glisser pour déplacer"></canvas>
+          <label style="margin-top:12px">Zoom<input type="range" id="zoom" min="1" max="4" step="0.01" value="1"></label>
+          <p class="hint">Faites glisser la photo pour la placer dans le cercle.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Étape 2 -->
+    <div class="step">
+      <h2><span class="num">2</span> Vos jeux</h2>
+      <p class="hint" style="margin:-8px 0 16px">Une page par jeu. Idéalement, la photo de la boîte est déjà détourée (PNG transparent). Sinon, l'outil vous aide à la détourer.</p>
+      <div id="games"></div>
+      <button type="button" class="btn secondary block" id="addGame">+ Ajouter un jeu</button>
+      <p class="hint" id="gamesLimit"></p>
+    </div>
+
+    <!-- Étape 3 -->
+    <div class="step">
+      <h2><span class="num">3</span> Télécharger</h2>
+      <ul class="checklist" id="checklist"></ul>
+      <button type="button" class="btn primary block" id="dl" disabled>Télécharger le carrousel (ZIP)</button>
+      <p class="hint">Les images sont créées sur votre appareil : rien n'est envoyé ni stocké. Sur téléphone, vous pouvez aussi enregistrer les pages une par une depuis l'aperçu.</p>
+    </div>
+  </section>
+
+  <section class="preview" aria-label="Aperçu">
+    <div class="preview-head"><h2>Aperçu</h2><span class="count" id="pageCount"></span></div>
+    <div class="pages" id="pages"></div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Aucune donnée collectée. Aucun cookie.</span>
+    <a class="link" id="modeLink" href="#gabarit">Espace graphistes</a>
+  </div>
+</footer>
+
+<script>
+"use strict";
+
+/* =====================================================================
+   1. RÉGLAGES PAR DÉFAUT ET LECTURE DE reglages.txt
+   ===================================================================== */
+
+const DEFAULTS = {
+  nom: "Événement", annee: "", police: "", pagesFixes: [],
+  couleurNom: "#FFFFFF", majuscules: true, couleurEx: "#FFFFFF",
+  texte1: "1 exemplaire à gagner !", texteN: "[n] exemplaires à gagner !", maxJeux: 17,
+  couleurContour: "#FFFFFF", epaisseurContour: 12,
+  couleurCartouche: "#FFFFFF", arrondiCartouche: 24, margeCartouche: 30,
+  seuil: 2.5, minLogo: 800, minPhoto: 800, minBoite: 1000,
+  couleurInterface: "#2783DE",
+};
+
+// Nom écrit dans reglages.txt (sans accents, majuscules) -> [clé interne, type]
+const KEYS = {
+  "NOM DE L'EVENEMENT": ["nom", "text"],
+  "ANNEE": ["annee", "text"],
+  "POLICE": ["police", "text"],
+  "PAGES FIXES": ["pagesFixes", "list"],
+  "COULEUR DU NOM DU JEU": ["couleurNom", "color"],
+  "NOM DU JEU EN MAJUSCULES": ["majuscules", "bool"],
+  "COULEUR DU NOMBRE D'EXEMPLAIRES": ["couleurEx", "color"],
+  "TEXTE POUR 1 EXEMPLAIRE": ["texte1", "text"],
+  "TEXTE POUR PLUSIEURS": ["texteN", "text"],
+  "NOMBRE MAXIMUM DE JEUX": ["maxJeux", "int"],
+  "COULEUR DU CONTOUR PHOTO": ["couleurContour", "color"],
+  "EPAISSEUR DU CONTOUR PHOTO": ["epaisseurContour", "num"],
+  "COULEUR DU CARTOUCHE DE SECOURS": ["couleurCartouche", "color"],
+  "ARRONDI DU CARTOUCHE": ["arrondiCartouche", "num"],
+  "MARGE DU CARTOUCHE": ["margeCartouche", "num"],
+  "SEUIL DE LISIBILITE": ["seuil", "num"],
+  "TAILLE MINIMALE DU LOGO": ["minLogo", "int"],
+  "TAILLE MINIMALE DE LA PHOTO": ["minPhoto", "int"],
+  "TAILLE MINIMALE DE LA BOITE": ["minBoite", "int"],
+  "COULEUR DE L'INTERFACE": ["couleurInterface", "color"],
+};
+
+const normKey = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .replace(/[’`]/g, "'").toUpperCase().replace(/\s+/g, " ").trim();
+
+function parseReglages(text, report) {
+  const cfg = { ...DEFAULTS, pagesFixes: [] };
+  text.split(/\r?\n/).forEach((raw, i) => {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) return;
+    const idx = line.indexOf(":");
+    if (idx < 0) { report.push(["warn", `reglages.txt, ligne ${i + 1} : il manque les deux-points « : » (« ${line} »).`]); return; }
+    const key = normKey(line.slice(0, idx));
+    const val = line.slice(idx + 1).trim();
+    const def = KEYS[key];
+    if (!def) { report.push(["warn", `reglages.txt, ligne ${i + 1} : réglage inconnu « ${line.slice(0, idx).trim()} » (ignoré).`]); return; }
+    const [k, type] = def;
+    if (val === "") return;
+    if (type === "text") cfg[k] = val;
+    else if (type === "list") cfg[k] = val.split(/[,;]/).map(s => s.trim()).filter(Boolean);
+    else if (type === "bool") cfg[k] = /^(oui|yes|vrai|true|1)$/i.test(val);
+    else if (type === "color") {
+      const c = val.startsWith("#") ? val : "#" + val;
+      if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c)) cfg[k] = c;
+      else report.push(["warn", `reglages.txt, ligne ${i + 1} : « ${val} » n'est pas une couleur valide (format attendu : #FFE58A).`]);
+    } else {
+      const n = parseFloat(val.replace(",", "."));
+      if (isFinite(n)) cfg[k] = type === "int" ? Math.round(n) : n;
+      else report.push(["warn", `reglages.txt, ligne ${i + 1} : « ${val} » n'est pas un nombre.`]);
+    }
+  });
+  return cfg;
+}
+
+/* =====================================================================
+   2. SOURCES DE FICHIERS (site en ligne ou dossier local)
+   ===================================================================== */
+
+const httpSource = {
+  label: "visuels du site",
+  async get(path) {
+    try {
+      const r = await fetch("visuels/" + path, { cache: "no-cache" });
+      return r.ok ? await r.blob() : null;
+    } catch (e) { return null; }
+  },
+};
+
+function folderSource(fileList) {
+  const files = Array.from(fileList);
+  const anchor = files.find(f => /(^|\/)couverture\/fond\.png$/i.test(f.webkitRelativePath))
+    || files.find(f => /(^|\/)reglages\.txt$/i.test(f.webkitRelativePath));
+  let prefix = "";
+  if (anchor) prefix = anchor.webkitRelativePath.replace(/(couverture\/fond\.png|reglages\.txt)$/i, "");
+  const map = {};
+  files.forEach(f => {
+    const p = f.webkitRelativePath;
+    if (p.startsWith(prefix)) map[p.slice(prefix.length)] = f;
+  });
+  const rootName = files[0] ? files[0].webkitRelativePath.split("/")[0] : "dossier";
+  return {
+    label: "dossier « " + rootName + " »",
+    map,
+    async get(path) {
+      if (map[path]) return map[path];
+      const lower = path.toLowerCase();
+      const k = Object.keys(map).find(x => x.toLowerCase() === lower);
+      return k ? map[k] : null;
+    },
+  };
+}
+
+/* =====================================================================
+   3. OUTILS IMAGES
+   ===================================================================== */
+
+function loadImage(blob) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("image illisible")); };
+    img.src = url;
+  });
+}
+const dims = im => ({ w: im.naturalWidth || im.width, h: im.naturalHeight || im.height });
+function newCanvas(w, h) { const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(h)); return c; }
+
+// Copie une image dans un canvas, en la réduisant si elle dépasse maxSide.
+function toCanvas(img, maxSide = 0) {
+  let { w, h } = dims(img);
+  const s = maxSide && Math.max(w, h) > maxSide ? maxSide / Math.max(w, h) : 1;
+  const c = newCanvas(w * s, h * s);
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+  return c;
+}
+
+// Rectangle « contain » : l'image entière dans la zone, centrée.
+function containRect(img, z) {
+  const { w, h } = dims(img);
+  const s = Math.min(z.w / w, z.h / h);
+  const dw = w * s, dh = h * s;
+  return { x: z.x + (z.w - dw) / 2, y: z.y + (z.h - dh) / 2, w: dw, h: dh };
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  r = Math.max(0, Math.min(r, w / 2, h / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// Part des pixels du bord de l'image qui sont transparents (0 à 1).
+function borderTransparency(canvasOrImg) {
+  const c = canvasOrImg instanceof HTMLCanvasElement ? canvasOrImg : toCanvas(canvasOrImg, 600);
+  const { width: w, height: h } = c;
+  const d = c.getContext("2d").getImageData(0, 0, w, h).data;
+  let n = 0, t = 0;
+  const test = (x, y) => { n++; if (d[(y * w + x) * 4 + 3] < 24) t++; };
+  for (let x = 0; x < w; x++) { test(x, 0); test(x, h - 1); }
+  for (let y = 1; y < h - 1; y++) { test(0, y); test(w - 1, y); }
+  return n ? t / n : 0;
+}
+
+// Recadre au plus près des pixels visibles.
+function trimCanvas(c) {
+  const { width: w, height: h } = c;
+  const d = c.getContext("2d").getImageData(0, 0, w, h).data;
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (d[(y * w + x) * 4 + 3] > 10) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  }
+  if (x1 < 0) return null;
+  const out = newCanvas(x1 - x0 + 1, y1 - y0 + 1);
+  out.getContext("2d").drawImage(c, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
+  return out;
+}
+
+// Luminance relative (WCAG).
+function lum(r, g, b) {
+  const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+}
+
+// Détourage sans IA n°1 : on retire le fond uni en partant des bords (baguette magique).
+function autoCut(src, tol) {
+  const w = src.width, h = src.height;
+  const out = newCanvas(w, h);
+  const octx = out.getContext("2d");
+  octx.drawImage(src, 0, 0);
+  const img = octx.getImageData(0, 0, w, h);
+  const d = img.data;
+  // Couleur du fond = médiane des pixels du bord
+  const rs = [], gs = [], bs = [];
+  const sample = i => { rs.push(d[i]); gs.push(d[i + 1]); bs.push(d[i + 2]); };
+  for (let x = 0; x < w; x += 2) { sample(x * 4); sample(((h - 1) * w + x) * 4); }
+  for (let y = 0; y < h; y += 2) { sample(y * w * 4); sample((y * w + w - 1) * 4); }
+  const med = a => { a.sort((p, q) => p - q); return a[a.length >> 1]; };
+  const br = med(rs), bg = med(gs), bb = med(bs);
+  const T = tol, T2 = tol * 1.6;
+  const dist = p => { const i = p * 4; const dr = d[i] - br, dg = d[i + 1] - bg, db = d[i + 2] - bb; return Math.sqrt(dr * dr + dg * dg + db * db); };
+  const seen = new Uint8Array(w * h);
+  const queue = new Int32Array(w * h);
+  let qh = 0, qt = 0;
+  const push = p => { if (!seen[p] && dist(p) <= T2) { seen[p] = 1; queue[qt++] = p; } };
+  for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { push(y * w); push(y * w + w - 1); }
+  while (qh < qt) {
+    const p = queue[qh++];
+    const dd = dist(p);
+    if (dd <= T) {
+      d[p * 4 + 3] = 0;
+      const x = p % w, y = (p / w) | 0;
+      if (x > 0) push(p - 1); if (x < w - 1) push(p + 1);
+      if (y > 0) push(p - w); if (y < h - 1) push(p + w);
+    } else {
+      // bordure adoucie
+      d[p * 4 + 3] = Math.min(d[p * 4 + 3], Math.round(255 * (dd - T) / (T2 - T)));
+    }
+  }
+  octx.putImageData(img, 0, 0);
+  return out;
+}
+
+// Détourage sans IA n°2 : découpe selon les coins cliqués.
+function polygonCut(src, pts) {
+  const out = newCanvas(src.width, src.height);
+  const ctx = out.getContext("2d");
+  ctx.beginPath();
+  pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+  ctx.closePath();
+  ctx.clip();
+  ctx.drawImage(src, 0, 0);
+  return out;
+}
+
+// Détection des zones de couleur dans zones.png
+const ZONE_COLORS = {
+  logo: { rgb: [255, 0, 0], label: "Logo", css: "#FF0000" },
+  photo: { rgb: [0, 0, 255], label: "Photo", css: "#0000FF" },
+  nom: { rgb: [0, 255, 0], label: "Nom du jeu", css: "#00C800" },
+  boite: { rgb: [128, 0, 255], label: "Boîte", css: "#8000FF" },
+  ex: { rgb: [255, 255, 0], label: "Exemplaires", css: "#E6C800" },
+};
+function detectZones(img, keys) {
+  const c = toCanvas(img);
+  const { width: w, height: h } = c;
+  const d = c.getContext("2d").getImageData(0, 0, w, h).data;
+  const acc = {};
+  keys.forEach(k => acc[k] = { x0: w, y0: h, x1: -1, y1: -1, n: 0 });
+  const T2 = 70 * 70;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = (y * w + x) * 4;
+    if (d[i + 3] < 200) continue;
+    for (const k of keys) {
+      const [r, g, b] = ZONE_COLORS[k].rgb;
+      const dr = d[i] - r, dg = d[i + 1] - g, db = d[i + 2] - b;
+      if (dr * dr + dg * dg + db * db < T2) {
+        const a = acc[k]; a.n++;
+        if (x < a.x0) a.x0 = x; if (x > a.x1) a.x1 = x; if (y < a.y0) a.y0 = y; if (y > a.y1) a.y1 = y;
+        break;
+      }
+    }
+  }
+  const res = {};
+  keys.forEach(k => { const a = acc[k]; if (a.n > 200) res[k] = { x: a.x0, y: a.y0, w: a.x1 - a.x0 + 1, h: a.y1 - a.y0 + 1 }; });
+  return res;
+}
+
+/* =====================================================================
+   4. ÉTAT DE L'APPLICATION
+   ===================================================================== */
+
+const S = {
+  gabarit: /gabarit/i.test(location.hash + location.search),
+  ready: false,
+  cfg: { ...DEFAULTS },
+  A: {},           // images de l'événement
+  Z: {},           // zones détectées
+  W: 1080, H: 1350,
+  font: "sans-serif",
+  modes: ["marque", "personne"],
+  type: "marque",
+  logo: null, logoTransparent: false, logoContrast: null, cartouche: false,
+  photo: null, zoom: 1, ox: 0, oy: 0,
+  games: [],
+  showZones: false,
+};
+let gid = 0;
+const $ = id => document.getElementById(id);
+
+/* =====================================================================
+   5. CHARGEMENT ET VÉRIFICATION DU DOSSIER DE VISUELS
+   ===================================================================== */
+
+async function loadAll(source) {
+  const report = [];
+  const A = {};
+  // Réglages
+  const regBlob = await source.get("reglages.txt");
+  let cfg;
+  if (regBlob) { cfg = parseReglages(await regBlob.text(), report); }
+  else { cfg = { ...DEFAULTS }; report.push(["warn", "reglages.txt introuvable : les valeurs par défaut sont utilisées."]); }
+
+  const files = [
+    ["covFond", "couverture/fond.png", true],
+    ["covZones", "couverture/zones.png", true],
+    ["covAP1", "couverture/avant-plan-un-lot.png", false],
+    ["covAPn", "couverture/avant-plan-des-lots.png", false],
+    ["jeuFond", "jeu/fond.png", true],
+    ["jeuZones", "jeu/zones.png", true],
+    ["jeuAP", "jeu/avant-plan.png", false],
+  ];
+  for (const [k, path, required] of files) {
+    const b = await source.get(path);
+    if (!b) { if (required) report.push(["err", `Fichier manquant : ${path}`]); continue; }
+    try { A[k] = await loadImage(b); } catch (e) { report.push(["err", `Fichier illisible : ${path} (doit être un PNG).`]); }
+  }
+  if (!A.covAP1 && !A.covAPn) report.push(["warn", "Aucun avant-plan de couverture (avant-plan-un-lot.png / avant-plan-des-lots.png). La couverture n'aura pas de bulle."]);
+  else if (!A.covAP1 || !A.covAPn) report.push(["warn", `Il manque ${A.covAP1 ? "avant-plan-des-lots.png" : "avant-plan-un-lot.png"} : l'autre version sera utilisée dans tous les cas.`]);
+  if (!A.jeuAP) report.push(["info", "Pas de jeu/avant-plan.png (facultatif)."]);
+
+  // Pages fixes
+  A.fixed = [];
+  for (const name of cfg.pagesFixes) {
+    const b = await source.get("pages-fixes/" + name);
+    if (!b) { report.push(["err", `Page fixe introuvable : pages-fixes/${name} (indiquée dans PAGES FIXES).`]); continue; }
+    try { A.fixed.push({ name, img: await loadImage(b) }); } catch (e) { report.push(["err", `Page fixe illisible : pages-fixes/${name}`]); }
+  }
+  if (!cfg.pagesFixes.length) report.push(["info", "Aucune page fixe indiquée (réglage PAGES FIXES)."]);
+
+  // Dimensions
+  let W = 1080, H = 1350;
+  if (A.covFond) {
+    ({ w: W, h: H } = dims(A.covFond));
+    if (W !== 1080 || H !== 1350) report.push(["warn", `Le format est ${W}×${H} px. Pour Instagram, le format conseillé est 1080×1350 px.`]);
+    const all = [["couverture/zones.png", A.covZones], ["couverture/avant-plan-un-lot.png", A.covAP1], ["couverture/avant-plan-des-lots.png", A.covAPn],
+      ["jeu/fond.png", A.jeuFond], ["jeu/zones.png", A.jeuZones], ["jeu/avant-plan.png", A.jeuAP], ...A.fixed.map(f => ["pages-fixes/" + f.name, f.img])];
+    all.forEach(([p, im]) => {
+      if (!im) return;
+      const d = dims(im);
+      if (d.w !== W || d.h !== H) report.push(["err", `${p} fait ${d.w}×${d.h} px au lieu de ${W}×${H} px (comme couverture/fond.png).`]);
+    });
+  }
+
+  // Zones
+  const Z = {};
+  const modes = [];
+  if (A.covZones) {
+    Object.assign(Z, detectZones(A.covZones, ["logo", "photo"]));
+    if (Z.logo) modes.push("marque");
+    if (Z.photo) modes.push("personne");
+    if (!modes.length) report.push(["err", "couverture/zones.png : aucune zone rouge (logo) ni bleue (photo) trouvée."]);
+    else if (modes.length === 1) report.push(["info", `couverture/zones.png : seule la zone ${Z.logo ? "rouge (logo)" : "bleue (photo)"} est présente, seul le mode « ${Z.logo ? "marque" : "personne"} » sera proposé.`]);
+  }
+  if (A.jeuZones) {
+    Object.assign(Z, detectZones(A.jeuZones, ["nom", "boite", "ex"]));
+    if (!Z.nom) report.push(["err", "jeu/zones.png : pas de zone verte (nom du jeu) trouvée."]);
+    if (!Z.boite) report.push(["err", "jeu/zones.png : pas de zone violette (boîte) trouvée."]);
+    if (!Z.ex) report.push(["err", "jeu/zones.png : pas de zone jaune (nombre d'exemplaires) trouvée."]);
+  }
+  Object.entries(Z).forEach(([k, z]) => { if (z.w < 60 || z.h < 30) report.push(["warn", `La zone « ${ZONE_COLORS[k].label} » est très petite (${z.w}×${z.h} px).`]); });
+
+  // Police
+  let font = "sans-serif";
+  if (cfg.police) {
+    const b = await source.get("polices/" + cfg.police);
+    if (!b) report.push(["warn", `Police introuvable : polices/${cfg.police}. Une police de secours est utilisée.`]);
+    else {
+      try {
+        const family = "PoliceEvenement" + Date.now();
+        const ff = new FontFace(family, await b.arrayBuffer());
+        await ff.load(); document.fonts.add(ff);
+        font = `"${family}", sans-serif`;
+      } catch (e) { report.push(["warn", `La police polices/${cfg.police} est illisible (formats acceptés : OTF, TTF, WOFF, WOFF2).`]); }
+    }
+  } else report.push(["warn", "Aucune police indiquée (réglage POLICE) : une police de secours est utilisée."]);
+
+  const errors = report.filter(r => r[0] === "err").length;
+  if (!errors) report.unshift(["ok", "Le dossier est complet : tout est prêt. ✓"]);
+  else report.unshift(["err", `${errors} erreur(s) à corriger avant de livrer le dossier.`]);
+  return { report, A, Z, cfg, W, H, font, modes, errors };
+}
+
+async function applySource(source) {
+  const res = await loadAll(source);
+  Object.assign(S, { A: res.A, Z: res.Z, cfg: res.cfg, W: res.W, H: res.H, font: res.font, modes: res.modes });
+  if (!S.modes.includes(S.type)) S.type = S.modes[0] || "marque";
+  applyTheme();
+  if (S.gabarit) {
+    $("sourceName").textContent = "— " + source.label;
+    $("report").innerHTML = "";
+    res.report.forEach(([lvl, txt]) => { const li = document.createElement("li"); li.className = lvl; li.textContent = txt; $("report").appendChild(li); });
+  }
+  const usable = S.A.covFond && S.A.jeuFond && S.modes.length && S.Z.nom && S.Z.boite && S.Z.ex;
+  if (!usable) {
+    S.ready = false;
+    $("app").hidden = true;
+    if (!S.gabarit) showFatal(res.report);
+    return;
+  }
+  $("fatal").hidden = true;
+  $("app").hidden = false;
+  S.ready = true;
+  if (S.logo) await evaluateLogo();
+  syncTypeUI();
+  update();
+}
+
+function showFatal(report) {
+  const box = $("fatal");
+  const local = location.protocol === "file:";
+  box.innerHTML = `<h2>L'outil n'est pas encore prêt</h2>
+    <p class="hint">${local
+      ? "Vous avez ouvert le fichier directement depuis votre ordinateur : le navigateur bloque alors la lecture du dossier visuels/. Mettez l'outil en ligne (GitHub Pages) ou utilisez l'espace graphistes ci-dessous pour choisir le dossier à la main."
+      : "Les visuels de l'événement sont incomplets. Si vous êtes partenaire, contactez l'association. Si vous gérez l'outil, voici ce qui manque :"}</p>
+    <ul>${report.filter(r => r[0] === "err").map(r => `<li>${escapeHtml(r[1])}</li>`).join("")}</ul>
+    <a class="btn secondary" href="#gabarit">Ouvrir l'espace graphistes</a>`;
+  box.hidden = false;
+}
+const escapeHtml = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function applyTheme() {
+  const c = S.cfg.couleurInterface || DEFAULTS.couleurInterface;
+  document.documentElement.style.setProperty("--accent", c);
+  document.documentElement.style.setProperty("--accent-soft", c + "22");
+  const evt = [S.cfg.nom, S.cfg.annee].filter(Boolean).join(" ");
+  $("evtName").textContent = evt + (S.gabarit ? " · Espace graphistes" : "");
+  document.title = evt + " – Générateur de visuels";
+}
+
+/* =====================================================================
+   6. RENDU DES PAGES
+   ===================================================================== */
+
+function totalLots() { return S.games.reduce((s, g) => s + (g.count > 0 ? g.count : 0), 0); }
+
+function logoRect() {
+  const z = S.Z.logo;
+  if (!S.cartouche) return containRect(S.logo, z);
+  const m = S.cfg.margeCartouche;
+  const inner = containRect(S.logo, { x: z.x + m, y: z.y + m, w: z.w - 2 * m, h: z.h - 2 * m });
+  return inner;
+}
+
+function drawPlaceholder(ctx, z, text, round) {
+  ctx.save();
+  ctx.fillStyle = "rgba(255,255,255,.28)";
+  ctx.strokeStyle = "rgba(255,255,255,.9)";
+  ctx.lineWidth = 4; ctx.setLineDash([16, 12]);
+  if (round) { ctx.beginPath(); ctx.arc(z.x + z.w / 2, z.y + z.h / 2, Math.min(z.w, z.h) / 2 - 4, 0, Math.PI * 2); }
+  else roundRect(ctx, z.x + 2, z.y + 2, z.w - 4, z.h - 4, 16);
+  ctx.fill(); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = "rgba(255,255,255,.95)";
+  ctx.font = `600 ${Math.round(Math.min(44, z.h / 5))}px -apple-system, Segoe UI, Arial, sans-serif`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(text, z.x + z.w / 2, z.y + z.h / 2);
+  ctx.restore();
+}
+
+function drawCover(ctx) {
+  const { A, Z, cfg } = S;
+  ctx.drawImage(A.covFond, 0, 0, S.W, S.H);
+  if (S.type === "marque") {
+    const z = Z.logo;
+    if (!S.logo) drawPlaceholder(ctx, z, "Votre logo ici");
+    else {
+      const r = logoRect();
+      if (S.cartouche) {
+        const m = cfg.margeCartouche;
+        ctx.fillStyle = cfg.couleurCartouche;
+        roundRect(ctx, r.x - m, r.y - m, r.w + 2 * m, r.h + 2 * m, cfg.arrondiCartouche);
+        ctx.fill();
+        ctx.drawImage(S.logo, r.x, r.y, r.w, r.h);
+      } else if (!S.logoTransparent) {
+        ctx.save(); roundRect(ctx, r.x, r.y, r.w, r.h, cfg.arrondiCartouche); ctx.clip();
+        ctx.drawImage(S.logo, r.x, r.y, r.w, r.h); ctx.restore();
+      } else ctx.drawImage(S.logo, r.x, r.y, r.w, r.h);
+    }
+  } else {
+    const z = Z.photo;
+    if (!S.photo) drawPlaceholder(ctx, z, "Votre photo ici", true);
+    else drawPhotoCircle(ctx, S.photo, z.x + z.w / 2, z.y + z.h / 2, Math.min(z.w, z.h), cfg.epaisseurContour, cfg.couleurContour);
+  }
+  const ap = totalLots() === 1 ? (A.covAP1 || A.covAPn) : (A.covAPn || A.covAP1);
+  if (ap) ctx.drawImage(ap, 0, 0, S.W, S.H);
+}
+
+function drawPhotoCircle(ctx, img, cx, cy, D, border, color) {
+  const { w, h } = dims(img);
+  const s = Math.max(D / w, D / h) * S.zoom;
+  const dw = w * s, dh = h * s;
+  const maxX = (dw - D) / 2, maxY = (dh - D) / 2;
+  S.ox = Math.max(-maxX / D, Math.min(maxX / D, S.ox));
+  S.oy = Math.max(-maxY / D, Math.min(maxY / D, S.oy));
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, D / 2, 0, Math.PI * 2); ctx.clip();
+  ctx.drawImage(img, cx - dw / 2 + S.ox * D, cy - dh / 2 + S.oy * D, dw, dh);
+  ctx.restore();
+  if (border > 0) {
+    ctx.beginPath(); ctx.arc(cx, cy, D / 2 - border / 2, 0, Math.PI * 2);
+    ctx.lineWidth = border; ctx.strokeStyle = color; ctx.stroke();
+  }
+}
+
+// Texte ajusté automatiquement à la zone (taille + retour à la ligne).
+function fitText(ctx, text, z, color, maxLines, alpha = 1) {
+  if (!text) return;
+  const words = text.split(/\s+/).filter(Boolean);
+  for (let size = Math.floor(z.h); size >= 12; size -= 2) {
+    ctx.font = `${size}px ${S.font}`;
+    const lines = [];
+    let cur = "";
+    for (const wd of words) {
+      const t = cur ? cur + " " + wd : wd;
+      if (ctx.measureText(t).width <= z.w || !cur) cur = t; else { lines.push(cur); cur = wd; }
+    }
+    if (cur) lines.push(cur);
+    const lh = size * 1.08;
+    if (lines.length <= maxLines && lines.length * lh <= z.h + 1 && lines.every(l => ctx.measureText(l).width <= z.w)) {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = color; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      const y0 = z.y + (z.h - lines.length * lh) / 2 + lh / 2;
+      lines.forEach((l, i) => ctx.fillText(l, z.x + z.w / 2, y0 + i * lh));
+      ctx.restore();
+      return;
+    }
+  }
+}
+
+function exText(n) {
+  const { cfg } = S;
+  return (n === 1 ? cfg.texte1 : cfg.texteN).replace(/\[n\]|\{n\}/gi, String(n));
+}
+
+function drawGame(ctx, g) {
+  const { A, Z, cfg } = S;
+  ctx.drawImage(A.jeuFond, 0, 0, S.W, S.H);
+  if (g.cut) { const r = containRect(g.cut, Z.boite); ctx.drawImage(g.cut, r.x, r.y, r.w, r.h); }
+  else drawPlaceholder(ctx, Z.boite, "Photo de la boîte");
+  let name = g.name.trim();
+  if (name) fitText(ctx, cfg.majuscules ? name.toLocaleUpperCase("fr-FR") : name, Z.nom, cfg.couleurNom, 2);
+  else fitText(ctx, cfg.majuscules ? "NOM DU JEU" : "Nom du jeu", Z.nom, cfg.couleurNom, 1, 0.45);
+  const n = g.count > 0 ? g.count : 1;
+  fitText(ctx, exText(n), Z.ex, cfg.couleurEx, 1, g.count > 0 ? 1 : 0.45);
+  if (A.jeuAP) ctx.drawImage(A.jeuAP, 0, 0, S.W, S.H);
+}
+
+function drawZonesOverlay(ctx, keys) {
+  ctx.save();
+  keys.forEach(k => {
+    const z = S.Z[k]; if (!z) return;
+    const c = ZONE_COLORS[k];
+    ctx.fillStyle = c.css + "33"; ctx.strokeStyle = c.css; ctx.lineWidth = 6;
+    if (k === "photo") { ctx.beginPath(); ctx.arc(z.x + z.w / 2, z.y + z.h / 2, Math.min(z.w, z.h) / 2, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+    else { ctx.fillRect(z.x, z.y, z.w, z.h); ctx.strokeRect(z.x, z.y, z.w, z.h); }
+    ctx.font = "700 30px -apple-system, Segoe UI, Arial, sans-serif";
+    const label = `${c.label} · ${z.w}×${z.h}`;
+    const tw = ctx.measureText(label).width;
+    ctx.fillStyle = c.css; ctx.fillRect(z.x, z.y - 42, tw + 20, 42);
+    ctx.fillStyle = k === "ex" || k === "nom" ? "#000" : "#fff";
+    ctx.textBaseline = "middle"; ctx.fillText(label, z.x + 10, z.y - 21);
+  });
+  ctx.restore();
+}
+
+function pageList() {
+  const pages = [{ kind: "cover", label: "Couverture" }];
+  S.games.forEach((g, i) => pages.push({ kind: "game", g, label: g.name.trim() || `Jeu ${i + 1}` }));
+  (S.A.fixed || []).forEach(f => pages.push({ kind: "fixed", f, label: f.name.replace(/\.png$/i, "").replace(/^\d+[-_ ]*/, "") }));
+  return pages;
+}
+
+function renderPage(p, overlay) {
+  const c = newCanvas(S.W, S.H);
+  const ctx = c.getContext("2d");
+  if (p.kind === "cover") { drawCover(ctx); if (overlay) drawZonesOverlay(ctx, S.type === "marque" ? ["logo"] : ["photo"]); }
+  else if (p.kind === "game") { drawGame(ctx, p.g); if (overlay) drawZonesOverlay(ctx, ["nom", "boite", "ex"]); }
+  else ctx.drawImage(p.f.img, 0, 0, S.W, S.H);
+  return c;
+}
+
+const slug = s => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 50);
+function fileNameFor(p, i) {
+  const n = String(i + 1).padStart(2, "0");
+  if (p.kind === "cover") return `${n}-couverture.png`;
+  if (p.kind === "game") return `${n}-jeu-${slug(p.g.name) || "sans-nom"}.png`;
+  return `${n}-${slug(p.label) || "page"}.png`;
+}
+
+let renderQueued = false;
+function renderPreviews() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => {
+    renderQueued = false;
+    if (!S.ready) return;
+    const pages = pageList();
+    const box = $("pages");
+    while (box.children.length > pages.length) box.lastChild.remove();
+    pages.forEach((p, i) => {
+      let fig = box.children[i];
+      if (!fig) {
+        fig = document.createElement("figure"); fig.className = "page";
+        fig.innerHTML = `<canvas></canvas><figcaption><span></span><button type="button" class="btn secondary small">Enregistrer</button></figcaption>`;
+        fig.querySelector("button").addEventListener("click", () => downloadOne(+fig.dataset.index));
+        box.appendChild(fig);
+      }
+      fig.dataset.index = i;
+      const cv = fig.querySelector("canvas");
+      if (cv.width !== S.W || cv.height !== S.H) { cv.width = S.W; cv.height = S.H; }
+      const ctx = cv.getContext("2d");
+      ctx.clearRect(0, 0, S.W, S.H);
+      ctx.drawImage(renderPage(p, S.showZones), 0, 0);
+      cv.setAttribute("aria-label", `Page ${i + 1} : ${p.label}`);
+      fig.querySelector("span").textContent = `${i + 1} · ${p.label}`;
+    });
+    $("pageCount").textContent = `${pages.length} page${pages.length > 1 ? "s" : ""} · ${S.W}×${S.H} px`;
+  });
+}
+
+/* =====================================================================
+   7. COUVERTURE : LOGO OU PHOTO
+   ===================================================================== */
+
+function setMsg(el, level, html) { el.className = "msg " + (level || ""); el.innerHTML = html || ""; }
+
+function syncTypeUI() {
+  const seg = $("typeSeg");
+  seg.hidden = S.modes.length < 2;
+  seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.type === S.type)));
+  $("marqueBox").hidden = S.type !== "marque";
+  $("personneBox").hidden = S.type !== "personne";
+}
+
+// Contraste moyen entre les pixels du logo et le fond réel situé dessous.
+function computeLogoContrast() {
+  const z = S.Z.logo;
+  const r = containRect(S.logo, z);
+  const w = Math.max(1, Math.round(r.w)), h = Math.max(1, Math.round(r.h));
+  const bgC = newCanvas(w, h), lgC = newCanvas(w, h);
+  bgC.getContext("2d").drawImage(S.A.covFond, r.x, r.y, r.w, r.h, 0, 0, w, h);
+  lgC.getContext("2d").drawImage(S.logo, 0, 0, w, h);
+  const bd = bgC.getContext("2d").getImageData(0, 0, w, h).data;
+  const ld = lgC.getContext("2d").getImageData(0, 0, w, h).data;
+  let sum = 0, n = 0;
+  for (let i = 0; i < ld.length; i += 4) {
+    if (ld[i + 3] < 160) continue;
+    const L1 = lum(ld[i], ld[i + 1], ld[i + 2]), L2 = lum(bd[i], bd[i + 1], bd[i + 2]);
+    sum += (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05); n++;
+  }
+  return n > 50 ? sum / n : null;
+}
+
+async function evaluateLogo() {
+  const msg = $("logoMsg");
+  S.logoTransparent = borderTransparency(S.logo) > 0.3;
+  $("cartoucheRow").hidden = !S.logoTransparent;
+  if (!S.logoTransparent) {
+    S.cartouche = false; $("cartouche").checked = false; S.logoContrast = null;
+    setMsg(msg, "ok", "Logo ajouté. Il n'est pas transparent : il sera affiché comme un cartouche aux coins arrondis.");
+    return;
+  }
+  S.logoContrast = computeLogoContrast();
+  const ok = S.logoContrast === null || S.logoContrast >= S.cfg.seuil;
+  if (ok || S.cartouche) {
+    setMsg(msg, "ok", S.cartouche ? "Logo ajouté avec un cartouche." : "Logo ajouté : il ressort bien sur le fond. ✓");
+  } else {
+    setMsg(msg, "err", `<strong>Votre logo ressort mal sur le fond</strong> et sera difficile à lire. Choisissez une solution pour continuer :
+      <div class="row"><button type="button" class="btn small primary" id="addCartouche">Ajouter un cartouche</button>
+      <label class="btn small secondary" style="margin:0; position:relative">Envoyer une autre version (claire ou blanche)<input type="file" accept="image/png,image/svg+xml,image/webp" style="position:absolute; inset:0; opacity:0" id="logoInput2"></label></div>`);
+    $("addCartouche").onclick = () => { S.cartouche = true; $("cartouche").checked = true; evaluateLogo(); update(); };
+    $("logoInput2").onchange = e => handleLogo(e.target.files[0]);
+  }
+}
+
+async function handleLogo(file) {
+  if (!file) return;
+  const msg = $("logoMsg");
+  let img;
+  try { img = await loadImage(file); } catch (e) { setMsg(msg, "err", "Ce fichier n'est pas une image lisible."); return; }
+  const isSvg = /svg/i.test(file.type) || /\.svg$/i.test(file.name);
+  const { w, h } = dims(img);
+  if (!isSvg && Math.max(w, h) < S.cfg.minLogo) {
+    setMsg(msg, "err", `Ce logo est trop petit (${w}×${h} px) : il serait flou. Envoyez une version d'au moins ${S.cfg.minLogo} px de large, ou un fichier SVG.`);
+    return;
+  }
+  // Les SVG sont convertis en image haute définition.
+  if (isSvg) {
+    const s = 1600 / Math.max(w || 1, h || 1);
+    const c = newCanvas((w || 1600) * s, (h || 1600) * s);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    img = c;
+  }
+  S.logo = img; S.cartouche = false; $("cartouche").checked = false;
+  await evaluateLogo();
+  update();
+}
+
+async function handlePhoto(file) {
+  if (!file) return;
+  const msg = $("photoMsg");
+  let img;
+  try { img = await loadImage(file); } catch (e) { setMsg(msg, "err", "Ce fichier n'est pas une image lisible."); return; }
+  const { w, h } = dims(img);
+  if (Math.min(w, h) < S.cfg.minPhoto) {
+    setMsg(msg, "err", `Cette photo est trop petite (${w}×${h} px) : elle serait floue. Envoyez une photo d'au moins ${S.cfg.minPhoto}×${S.cfg.minPhoto} px.`);
+    return;
+  }
+  S.photo = img; S.zoom = 1; S.ox = 0; S.oy = 0; $("zoom").value = 1;
+  setMsg(msg, "ok", "Photo ajoutée. Ajustez le cadrage ci-dessous.");
+  $("photoEditor").hidden = false;
+  drawPhotoEditor();
+  update();
+}
+
+function drawPhotoEditor() {
+  const c = $("photoCanvas"), ctx = c.getContext("2d");
+  ctx.clearRect(0, 0, c.width, c.height);
+  if (S.photo) drawPhotoCircle(ctx, S.photo, c.width / 2, c.height / 2, c.width, 0, "#fff");
+}
+
+function initPhotoDrag() {
+  const c = $("photoCanvas");
+  let start = null;
+  c.addEventListener("pointerdown", e => { if (!S.photo) return; start = { x: e.clientX, y: e.clientY, ox: S.ox, oy: S.oy }; c.setPointerCapture(e.pointerId); c.style.cursor = "grabbing"; });
+  c.addEventListener("pointermove", e => {
+    if (!start) return;
+    const D = c.clientWidth;
+    S.ox = start.ox + (e.clientX - start.x) / D;
+    S.oy = start.oy + (e.clientY - start.y) / D;
+    drawPhotoEditor(); renderPreviews();
+  });
+  const end = () => { start = null; c.style.cursor = "grab"; };
+  c.addEventListener("pointerup", end); c.addEventListener("pointercancel", end);
+  $("zoom").addEventListener("input", e => { S.zoom = +e.target.value; drawPhotoEditor(); renderPreviews(); });
+}
+
+/* =====================================================================
+   8. JEUX ET DÉTOURAGE
+   ===================================================================== */
+
+function maxGames() { return Math.max(1, Math.min(S.cfg.maxJeux, 20 - 1 - (S.A.fixed || []).length)); }
+
+function addGame(prefill) {
+  if (S.games.length >= maxGames()) return;
+  const g = Object.assign({ id: ++gid, name: "", count: 1, work: null, cut: null, status: "empty", tab: "auto", tol: 40, pts: [], autoResult: null }, prefill || {});
+  S.games.push(g);
+  buildGameCard(g);
+  update();
+  return g;
+}
+
+function buildGameCard(g) {
+  const el = document.createElement("div");
+  el.className = "game";
+  el.innerHTML = `
+    <div class="game-head"><strong class="gtitle">Jeu</strong><button type="button" class="link danger" data-act="del">Retirer</button></div>
+    <div class="game-grid">
+      <label>Nom du jeu<input type="text" data-f="name" maxlength="60" placeholder="Ex. Les Secrets de Zorro"></label>
+      <label>Exemplaires<input type="number" data-f="count" min="1" max="999" inputmode="numeric"></label>
+    </div>
+    <label class="drop" style="margin:0"><span class="droptext">Photo de la boîte</span><small>PNG détouré idéalement · JPG accepté (à détourer ici)</small>
+      <input type="file" data-f="file" accept="image/png,image/webp,image/jpeg"></label>
+    <div class="msg" data-f="msg" role="status"></div>
+    <div class="detour" hidden>
+      <h3>Détourez la boîte</h3>
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" data-tab="auto">Fond uni (automatique)</button>
+        <button type="button" role="tab" data-tab="poly">Cliquer les coins</button>
+      </div>
+      <div data-pane="auto">
+        <canvas class="dcanvas checker"></canvas>
+        <label style="margin-top:12px">Tolérance<input type="range" data-f="tol" min="5" max="120"></label>
+        <p class="hint" style="margin-top:-4px">Augmentez si des restes de fond apparaissent, baissez si la boîte est rognée.</p>
+      </div>
+      <div data-pane="poly" hidden>
+        <canvas class="pcanvas"></canvas>
+        <p class="hint">Cliquez sur chaque coin de la boîte, dans l'ordre : 4 coins pour une boîte de face, 6 pour une boîte en 3D.</p>
+        <div class="row"><button type="button" class="btn small secondary" data-act="undo">Annuler le dernier point</button><button type="button" class="btn small secondary" data-act="reset">Recommencer</button></div>
+      </div>
+      <div class="row"><button type="button" class="btn primary block" data-act="validate">Valider ce détourage</button></div>
+    </div>
+    <div class="done" hidden>
+      <div class="thumb checker"><canvas></canvas></div>
+      <button type="button" class="btn small secondary" data-act="redo">Refaire le détourage</button>
+    </div>`;
+  g.el = el;
+  const q = s => el.querySelector(s);
+  q('[data-f="name"]').value = g.name;
+  q('[data-f="count"]').value = g.count;
+  q('[data-f="tol"]').value = g.tol;
+  q('[data-f="name"]').addEventListener("input", e => { g.name = e.target.value; update(); });
+  q('[data-f="count"]').addEventListener("input", e => { g.count = parseInt(e.target.value, 10) || 0; update(); });
+  q('[data-f="file"]').addEventListener("change", e => handleBox(g, e.target.files[0]));
+  q('[data-act="del"]').addEventListener("click", () => { S.games = S.games.filter(x => x !== g); el.remove(); update(); });
+  el.querySelectorAll("[data-tab]").forEach(b => b.addEventListener("click", () => { g.tab = b.dataset.tab; refreshDetour(g); }));
+  let tolTimer;
+  q('[data-f="tol"]').addEventListener("input", e => { g.tol = +e.target.value; clearTimeout(tolTimer); tolTimer = setTimeout(() => refreshDetour(g), 80); });
+  const pc = q(".pcanvas");
+  pc.addEventListener("click", e => {
+    const r = pc.getBoundingClientRect();
+    g.pts.push({ x: (e.clientX - r.left) / r.width * pc.width, y: (e.clientY - r.top) / r.height * pc.height });
+    refreshDetour(g);
+  });
+  q('[data-act="undo"]').addEventListener("click", () => { g.pts.pop(); refreshDetour(g); });
+  q('[data-act="reset"]').addEventListener("click", () => { g.pts = []; refreshDetour(g); });
+  q('[data-act="validate"]').addEventListener("click", () => validateDetour(g));
+  q('[data-act="redo"]').addEventListener("click", () => { g.status = "detour"; g.cut = null; refreshGameCard(g); update(); });
+  $("games").appendChild(el);
+  refreshGameCard(g);
+}
+
+async function handleBox(g, file) {
+  if (!file) return;
+  const msgEl = g.el.querySelector('[data-f="msg"]');
+  let img;
+  try { img = await loadImage(file); } catch (e) { setMsg(msgEl, "err", "Ce fichier n'est pas une image lisible."); return; }
+  const { w, h } = dims(img);
+  if (Math.max(w, h) < S.cfg.minBoite) {
+    setMsg(msgEl, "err", `Cette image est trop petite (${w}×${h} px) : la boîte serait floue. Il faut au moins ${S.cfg.minBoite} px sur le côté le plus grand. Demandez le packshot haute définition à l'éditeur.`);
+    return;
+  }
+  g.work = toCanvas(img, 1400);
+  g.pts = []; g.cut = null;
+  if (borderTransparency(g.work) >= 0.9) {
+    g.cut = trimCanvas(g.work);
+    g.status = "ok";
+    setMsg(msgEl, "ok", "Image déjà détourée. ✓");
+  } else {
+    g.status = "detour";
+    g.tab = "auto";
+    setMsg(msgEl, "warn", "Cette image a un fond : détourez la boîte ci-dessous avant de continuer.");
+  }
+  refreshGameCard(g);
+  update();
+}
+
+function refreshDetour(g) {
+  const el = g.el;
+  if (!g.work) return;
+  el.querySelectorAll("[data-tab]").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === g.tab)));
+  el.querySelector('[data-pane="auto"]').hidden = g.tab !== "auto";
+  el.querySelector('[data-pane="poly"]').hidden = g.tab !== "poly";
+  if (g.tab === "auto") {
+    g.autoResult = autoCut(g.work, g.tol);
+    const dc = el.querySelector(".dcanvas");
+    dc.width = g.work.width; dc.height = g.work.height;
+    dc.getContext("2d").drawImage(g.autoResult, 0, 0);
+  } else {
+    const pc = el.querySelector(".pcanvas");
+    pc.width = g.work.width; pc.height = g.work.height;
+    const ctx = pc.getContext("2d");
+    ctx.drawImage(g.work, 0, 0);
+    const k = pc.width / Math.max(1, pc.clientWidth || 360);
+    if (g.pts.length) {
+      if (g.pts.length >= 3) {
+        ctx.save(); ctx.fillStyle = "rgba(0,0,0,.45)";
+        ctx.beginPath(); ctx.rect(0, 0, pc.width, pc.height);
+        g.pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath();
+        ctx.fill("evenodd"); ctx.restore();
+      }
+      ctx.strokeStyle = "#2783DE"; ctx.lineWidth = 3 * k;
+      ctx.beginPath(); g.pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+      if (g.pts.length >= 3) ctx.closePath();
+      ctx.stroke();
+      g.pts.forEach((p, i) => {
+        ctx.beginPath(); ctx.arc(p.x, p.y, 7 * k, 0, Math.PI * 2);
+        ctx.fillStyle = "#fff"; ctx.fill(); ctx.lineWidth = 3 * k; ctx.strokeStyle = "#2783DE"; ctx.stroke();
+      });
+    }
+    el.querySelector('[data-act="validate"]').disabled = g.pts.length < 3;
+    return;
+  }
+  el.querySelector('[data-act="validate"]').disabled = false;
+}
+
+function validateDetour(g) {
+  const msgEl = g.el.querySelector('[data-f="msg"]');
+  let res;
+  if (g.tab === "auto") {
+    res = g.autoResult || autoCut(g.work, g.tol);
+    if (borderTransparency(res) < 0.6) {
+      setMsg(msgEl, "err", "Le fond n'a pas pu être retiré complètement (fond trop chargé, ou boîte qui touche le bord de la photo). Essayez d'augmenter la tolérance, ou utilisez « Cliquer les coins ».");
+      return;
+    }
+  } else {
+    if (g.pts.length < 3) return;
+    res = polygonCut(g.work, g.pts);
+  }
+  const t = trimCanvas(res);
+  if (!t) { setMsg(msgEl, "err", "Il ne reste plus rien de l'image : baissez la tolérance."); return; }
+  g.cut = t; g.status = "ok";
+  setMsg(msgEl, "ok", "Détourage validé. ✓");
+  refreshGameCard(g);
+  update();
+}
+
+function refreshGameCard(g) {
+  const el = g.el;
+  el.querySelector(".detour").hidden = g.status !== "detour";
+  el.querySelector(".done").hidden = g.status !== "ok";
+  el.querySelector(".droptext").textContent = g.work || g.cut ? "Changer la photo de la boîte" : "Photo de la boîte";
+  el.querySelector('[data-act="redo"]').hidden = !g.work;
+  if (g.status === "detour") requestAnimationFrame(() => refreshDetour(g));
+  if (g.status === "ok" && g.cut) {
+    const tc = el.querySelector(".thumb canvas");
+    const s = 64 / Math.max(g.cut.width, g.cut.height);
+    tc.width = Math.round(g.cut.width * s); tc.height = Math.round(g.cut.height * s);
+    tc.getContext("2d").drawImage(g.cut, 0, 0, tc.width, tc.height);
+  }
+}
+
+/* =====================================================================
+   9. VÉRIFICATIONS AVANT TÉLÉCHARGEMENT
+   ===================================================================== */
+
+function problems() {
+  const out = [];
+  if (S.type === "marque") {
+    if (!S.logo) out.push("Ajoutez votre logo.");
+    else if (S.logoTransparent && S.logoContrast !== null && S.logoContrast < S.cfg.seuil && !S.cartouche) out.push("Votre logo ressort mal sur le fond : ajoutez un cartouche ou envoyez une autre version.");
+  } else if (!S.photo) out.push("Ajoutez votre photo.");
+  if (!S.games.length) out.push("Ajoutez au moins un jeu.");
+  S.games.forEach((g, i) => {
+    const n = g.name.trim() || `Jeu ${i + 1}`;
+    if (!g.name.trim()) out.push(`Jeu ${i + 1} : indiquez le nom du jeu.`);
+    if (!(g.count > 0)) out.push(`${n} : indiquez le nombre d'exemplaires.`);
+    if (g.status === "empty") out.push(`${n} : ajoutez la photo de la boîte.`);
+    if (g.status === "detour") out.push(`${n} : validez le détourage de la boîte.`);
+  });
+  return out;
+}
+
+function update() {
+  if (!S.ready) return;
+  S.games.forEach((g, i) => { const t = g.el.querySelector(".gtitle"); t.textContent = `Jeu ${i + 1}`; });
+  const max = maxGames();
+  $("addGame").disabled = S.games.length >= max;
+  $("addGame").hidden = S.games.length >= max;
+  $("gamesLimit").textContent = S.games.length >= max
+    ? `Maximum atteint : ${max} jeux (un carrousel Instagram compte 20 pages au plus).`
+    : `Jusqu'à ${max} jeux.`;
+  const list = problems();
+  const ul = $("checklist");
+  ul.innerHTML = "";
+  if (!list.length) { const li = document.createElement("li"); li.className = "okline"; li.textContent = "Tout est prêt, vous pouvez télécharger."; ul.appendChild(li); }
+  list.forEach(t => { const li = document.createElement("li"); li.textContent = t; ul.appendChild(li); });
+  $("dl").disabled = list.length > 0;
+  renderPreviews();
+}
+
+/* =====================================================================
+   10. EXPORT : PNG ET ZIP (format ZIP sans compression, fait maison)
+   ===================================================================== */
+
+const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u8) { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+
+function makeZip(files) {
+  const enc = new TextEncoder();
+  const parts = [], central = [];
+  let offset = 0;
+  const now = new Date();
+  const time = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+  const date = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  for (const f of files) {
+    const name = enc.encode(f.name), crc = crc32(f.data), size = f.data.length;
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true);
+    lh.setUint16(10, time, true); lh.setUint16(12, date, true); lh.setUint32(14, crc, true);
+    lh.setUint32(18, size, true); lh.setUint32(22, size, true); lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+    parts.push(lh.buffer, name, f.data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true);
+    ch.setUint16(10, 0, true); ch.setUint16(12, time, true); ch.setUint16(14, date, true); ch.setUint32(16, crc, true);
+    ch.setUint32(20, size, true); ch.setUint32(24, size, true); ch.setUint16(28, name.length, true);
+    ch.setUint16(30, 0, true); ch.setUint16(32, 0, true); ch.setUint16(34, 0, true); ch.setUint16(36, 0, true);
+    ch.setUint32(38, 0, true); ch.setUint32(42, offset, true);
+    central.push(ch.buffer, name);
+    offset += 30 + name.length + size;
+  }
+  const cdSize = central.reduce((s, b) => s + (b.byteLength !== undefined ? b.byteLength : b.length), 0);
+  const eo = new DataView(new ArrayBuffer(22));
+  eo.setUint32(0, 0x06054b50, true); eo.setUint16(8, files.length, true); eo.setUint16(10, files.length, true);
+  eo.setUint32(12, cdSize, true); eo.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, eo.buffer], { type: "application/zip" });
+}
+
+const canvasToBlob = c => new Promise(r => c.toBlob(r, "image/png"));
+function saveBlob(blob, name) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+function baseName() { return [slug(S.cfg.nom), S.cfg.annee, slug($("partnerName").value) || "partenaire"].filter(Boolean).join("-"); }
+
+async function downloadAll() {
+  if (problems().length) return;
+  const btn = $("dl"); const label = btn.textContent;
+  btn.disabled = true; btn.textContent = "Préparation…";
+  try {
+    const pages = pageList(), files = [];
+    for (let i = 0; i < pages.length; i++) {
+      const blob = await canvasToBlob(renderPage(pages[i], false));
+      files.push({ name: fileNameFor(pages[i], i), data: new Uint8Array(await blob.arrayBuffer()) });
+    }
+    saveBlob(makeZip(files), baseName() + ".zip");
+  } finally { btn.textContent = label; update(); }
+}
+async function downloadOne(i) {
+  const p = pageList()[i]; if (!p) return;
+  const blob = await canvasToBlob(renderPage(p, false));
+  saveBlob(blob, baseName() + "-" + fileNameFor(p, i));
+}
+
+/* =====================================================================
+   11. EXEMPLES POUR L'ESPACE GRAPHISTES
+   ===================================================================== */
+
+function fakeLogo() {
+  const c = newCanvas(1000, 400), ctx = c.getContext("2d");
+  ctx.fillStyle = "#1D2B53";
+  ctx.beginPath(); ctx.arc(200, 200, 150, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#FFFFFF"; ctx.font = "700 150px Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText("L", 200, 210);
+  ctx.fillStyle = "#1D2B53"; ctx.textAlign = "left"; ctx.font = "700 120px Arial, sans-serif";
+  ctx.fillText("LOGO", 390, 210);
+  return c;
+}
+function fakeBox(title, color) {
+  const c = newCanvas(900, 1000), ctx = c.getContext("2d");
+  ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(80, 180); ctx.lineTo(700, 180); ctx.lineTo(700, 960); ctx.lineTo(80, 960); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.beginPath(); ctx.moveTo(700, 180); ctx.lineTo(820, 80); ctx.lineTo(820, 860); ctx.lineTo(700, 960); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.35)"; ctx.beginPath(); ctx.moveTo(80, 180); ctx.lineTo(200, 80); ctx.lineTo(820, 80); ctx.lineTo(700, 180); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#fff"; ctx.font = "700 90px Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(title, 390, 560);
+  return c;
+}
+async function fillDemo() {
+  if (!S.ready) return;
+  if (S.modes.includes("marque")) { S.type = "marque"; S.logo = fakeLogo(); S.cartouche = false; $("cartouche").checked = false; syncTypeUI(); await evaluateLogo(); }
+  $("partnerName").value = "Exemple";
+  S.games.forEach(g => g.el.remove()); S.games = [];
+  addGame({ name: "Les Secrets de Zorro", count: 10, cut: fakeBox("ZORRO", "#B23A48"), status: "ok" });
+  addGame({ name: "Un jeu avec un nom vraiment très long pour tester", count: 1, cut: fakeBox("JEU 2", "#2D6A4F"), status: "ok" });
+  S.games.forEach(refreshGameCard);
+  update();
+}
+
+/* =====================================================================
+   12. DÉMARRAGE
+   ===================================================================== */
+
+function init() {
+  $("gabaritBar").hidden = !S.gabarit;
+  $("modeLink").textContent = S.gabarit ? "Retour à l'outil partenaires" : "Espace graphistes";
+  $("modeLink").href = S.gabarit ? location.pathname : "#gabarit";
+  if (S.gabarit) { $("title").textContent = "Vérifiez votre dossier de visuels"; $("subtitle").textContent = "Testez le rendu avec de faux logos et de faux jeux avant de livrer."; }
+
+  $("typeSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.type = b.dataset.type; syncTypeUI(); update(); });
+  $("logoInput").addEventListener("change", e => handleLogo(e.target.files[0]));
+  $("cartouche").addEventListener("change", e => { S.cartouche = e.target.checked; evaluateLogo(); update(); });
+  $("photoInput").addEventListener("change", e => handlePhoto(e.target.files[0]));
+  initPhotoDrag();
+  $("addGame").addEventListener("click", () => addGame());
+  $("dl").addEventListener("click", downloadAll);
+  $("folderInput").addEventListener("change", e => { if (e.target.files.length) applySource(folderSource(e.target.files)); });
+  $("fillDemo").addEventListener("click", fillDemo);
+  $("showZones").addEventListener("change", e => { S.showZones = e.target.checked; renderPreviews(); });
+  window.addEventListener("hashchange", () => location.reload());
+
+  applySource(httpSource).then(() => {
+    if (S.ready && !S.games.length) addGame();
+  });
+}
+init();
+</script>
+</body>
+</html>
