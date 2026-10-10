@@ -124,6 +124,10 @@
   .tabs button[aria-selected=true] { background: #fff; color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
   .dcanvas, .pcanvas { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: var(--radius); }
   .pcanvas { cursor: crosshair; touch-action: none; }
+  .drop.paste-target { border-color: var(--accent); border-style: solid; }
+  .drop .paste-hint { display: block; font-weight: 400; font-size: 12px; color: var(--text-2); margin-top: 2px; }
+  .loupe { position: fixed; z-index: 50; width: 160px; height: 160px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 4px 18px rgba(0,0,0,.35); pointer-events: none; background: #fff; }
+  .paste-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 60; background: #002F2E; color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px; box-shadow: 0 4px 18px rgba(0,0,0,.3); }
   .done { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
   .thumb { width: 72px; height: 72px; border-radius: var(--radius); border: 1px solid var(--border); display: grid; place-items: center; overflow: hidden; flex: none; }
   .thumb canvas { max-width: 64px; max-height: 64px; }
@@ -231,16 +235,16 @@
       </div>
 
       <div id="brandBox">
-        <label class="drop">Choisir mon logo<small>PNG transparent conseillé · SVG, JPG acceptés</small>
-          <input type="file" id="logoInput" accept="image/png,image/svg+xml,image/jpeg,image/webp">
+        <label class="drop" data-paste="logo">Choisir mon logo<small>PNG transparent conseillé · SVG, JPG acceptés</small>
+          <span class="paste-hint">ou glissez le fichier ici, ou collez-le (Ctrl+V / ⌘+V)</span><input type="file" id="logoInput" accept="image/png,image/svg+xml,image/jpeg,image/webp">
         </label>
         <div class="msg" id="logoMsg" role="status"></div>
         <label class="check" id="badgeRow" hidden><input type="checkbox" id="cartouche"> Ajouter un cartouche derrière le logo</label>
       </div>
 
       <div id="personBox" hidden>
-        <label class="drop">Choisir ma photo<small>Un portrait de bonne qualité, JPG ou PNG</small>
-          <input type="file" id="photoInput" accept="image/png,image/jpeg,image/webp">
+        <label class="drop" data-paste="photo">Choisir ma photo<small>Un portrait de bonne qualité, JPG ou PNG</small>
+          <span class="paste-hint">ou glissez le fichier ici, ou collez-le (Ctrl+V / ⌘+V)</span><input type="file" id="photoInput" accept="image/png,image/jpeg,image/webp">
         </label>
         <div class="msg" id="photoMsg" role="status"></div>
         <div class="photo-editor" id="photoEditor" hidden>
@@ -1083,10 +1087,10 @@ function buildGameCard(g) {
   el.innerHTML = `
     <div class="game-head"><strong class="gtitle">Jeu</strong><button type="button" class="link danger" data-act="del">Retirer</button></div>
     <div class="game-grid">
-      <label>Nom du jeu<input type="text" data-f="name" maxlength="60" placeholder="Ex. Les Secrets de Zorro"></label>
+      <label>Nom du jeu<input type="text" data-f="name" maxlength="60" placeholder="Ex. 61 Feuille de printemps"></label>
       <label>Exemplaires<input type="number" data-f="count" min="1" max="999" inputmode="numeric"></label>
     </div>
-    <label class="drop" style="margin:0"><span class="droptext">Photo de la boîte</span><small>PNG détouré idéalement · JPG accepté (à détourer ici)</small>
+    <label class="drop" data-paste="game" style="margin:0"><span class="droptext">Photo de la boîte</span><small>PNG détouré idéalement · JPG accepté (à détourer ici)</small><span class="paste-hint">ou glissez le fichier ici, ou collez-le (Ctrl+V / ⌘+V)</span>
       <input type="file" data-f="file" accept="image/png,image/webp,image/jpeg"></label>
     <div class="msg" data-f="msg" role="status"></div>
     <div class="detour" hidden>
@@ -1124,17 +1128,100 @@ function buildGameCard(g) {
   let tolTimer;
   q('[data-f="tol"]').addEventListener("input", e => { g.tol = +e.target.value; clearTimeout(tolTimer); tolTimer = setTimeout(() => refreshCutout(g), 80); });
   const pc = q(".pcanvas");
-  pc.addEventListener("click", e => {
-    const r = pc.getBoundingClientRect();
-    g.pts.push({ x: (e.clientX - r.left) / r.width * pc.width, y: (e.clientY - r.top) / r.height * pc.height });
-    refreshCutout(g);
+  // Corner placement with a magnifier. Mouse: click. Touch: press, slide, release
+  // (the magnifier is shown above the finger so the point stays visible).
+  const toImg = e => { const r = pc.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * pc.width, y: (e.clientY - r.top) / r.height * pc.height }; };
+  let touchActive = false;
+  pc.addEventListener("pointerdown", e => { if (e.pointerType !== "mouse") { touchActive = true; pc.setPointerCapture(e.pointerId); showLoupe(pc, e, true); e.preventDefault(); } });
+  pc.addEventListener("pointermove", e => { if (e.pointerType === "mouse" || touchActive) showLoupe(pc, e, e.pointerType !== "mouse"); });
+  pc.addEventListener("pointerleave", e => { if (e.pointerType === "mouse") hideLoupe(); });
+  pc.addEventListener("pointerup", e => {
+    if (e.pointerType === "mouse") { g.pts.push(toImg(e)); refreshCutout(g); showLoupe(pc, e, false); return; }
+    if (!touchActive) return;
+    touchActive = false; hideLoupe(); g.pts.push(toImg(e)); refreshCutout(g);
   });
+  pc.addEventListener("pointercancel", () => { touchActive = false; hideLoupe(); });
   q('[data-act="undo"]').addEventListener("click", () => { g.pts.pop(); refreshCutout(g); });
   q('[data-act="reset"]').addEventListener("click", () => { g.pts = []; refreshCutout(g); });
   q('[data-act="validate"]').addEventListener("click", () => validateCutout(g));
   q('[data-act="redo"]').addEventListener("click", () => { g.status = "detour"; g.cut = null; refreshGameCard(g); update(); });
   $("games").appendChild(el);
   refreshGameCard(g);
+}
+
+/* Magnifier for the corner tool ------------------------------------------ */
+let loupeEl = null;
+const LOUPE_SIZE = 160, LOUPE_ZOOM = 4;
+function showLoupe(pc, e, aboveFinger) {
+  if (!loupeEl) { loupeEl = document.createElement("canvas"); loupeEl.className = "loupe"; loupeEl.width = LOUPE_SIZE * 2; loupeEl.height = LOUPE_SIZE * 2; document.body.appendChild(loupeEl); }
+  const r = pc.getBoundingClientRect();
+  const k = pc.width / r.width;                       // canvas px per screen px
+  const cx = (e.clientX - r.left) * k, cy = (e.clientY - r.top) * k;
+  const src = LOUPE_SIZE / LOUPE_ZOOM * k;            // source square, canvas px
+  const ctx = loupeEl.getContext("2d"), W = loupeEl.width;
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, W);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(pc, cx - src / 2, cy - src / 2, src, src, 0, 0, W, W);
+  ctx.strokeStyle = "#F28705"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, W); ctx.moveTo(0, W / 2); ctx.lineTo(W, W / 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(W / 2, W / 2, 6, 0, Math.PI * 2); ctx.stroke();
+  let x = e.clientX + 24, y = e.clientY - LOUPE_SIZE - 24;
+  if (aboveFinger) { x = e.clientX - LOUPE_SIZE / 2; y = e.clientY - LOUPE_SIZE - 60; }
+  if (y < 8) y = e.clientY + 40;
+  x = Math.max(8, Math.min(window.innerWidth - LOUPE_SIZE - 8, x));
+  loupeEl.style.left = x + "px"; loupeEl.style.top = y + "px"; loupeEl.hidden = false;
+}
+function hideLoupe() { if (loupeEl) loupeEl.hidden = true; }
+
+/* Paste images from the clipboard (Ctrl+V / Cmd+V) ------------------------- */
+// Target = last drop zone the user hovered, clicked or focused. Fallback: the first
+// empty slot (logo or photo, then the first game without a box, then a new game).
+let pasteTarget = null;
+function setPasteTarget(el) {
+  document.querySelectorAll(".drop.paste-target").forEach(d => d.classList.remove("paste-target"));
+  pasteTarget = el; if (el) el.classList.add("paste-target");
+}
+function initPaste() {
+  ["pointerenter", "focusin", "click"].forEach(ev => document.addEventListener(ev, e => {
+    const d = e.target.closest && e.target.closest(".drop[data-paste]"); if (d) setPasteTarget(d);
+  }, true));
+  document.addEventListener("paste", e => {
+    const t = e.target;
+    if (t && (t.tagName === "TEXTAREA" || (t.tagName === "INPUT" && t.type !== "file"))) {
+      // Text fields keep normal paste unless the clipboard only holds an image.
+      if ((e.clipboardData.getData("text") || "").length) return;
+    }
+    const item = [...(e.clipboardData?.items || [])].find(i => i.kind === "file" && i.type.startsWith("image/"));
+    if (!item) return;
+    const file = item.getAsFile(); if (!file) return;
+    e.preventDefault();
+    routePaste(file);
+  });
+}
+function toast(text) {
+  const t = document.createElement("div"); t.className = "paste-toast"; t.textContent = text; t.setAttribute("role", "status");
+  document.body.appendChild(t); setTimeout(() => t.remove(), 2200);
+}
+function routePaste(file) {
+  let d = pasteTarget && document.body.contains(pasteTarget) && !pasteTarget.closest("[hidden]") ? pasteTarget : null;
+  if (!d) {
+    const cover = S.type === "person" ? "photo" : "logo";
+    const coverEmpty = cover === "logo" ? !S.logo : !S.photo;
+    if (coverEmpty) d = document.querySelector(`.drop[data-paste="${cover}"]`);
+    else {
+      const g = S.games.find(x => !x.work && !x.cut) || addGame();
+      d = g && g.el.querySelector('.drop[data-paste="game"]');
+    }
+  }
+  if (!d) return;
+  const kind = d.dataset.paste;
+  if (kind === "logo") { handleLogo(file); toast("Image collée comme logo."); }
+  else if (kind === "photo") { handlePhoto(file); toast("Image collée comme photo."); }
+  else {
+    const g = S.games.find(x => x.el && x.el.contains(d)); if (!g) return;
+    handleBox(g, file); toast(`Image collée pour le jeu ${S.games.indexOf(g) + 1}.`);
+  }
+  setPasteTarget(d);
 }
 
 async function handleBox(g, file) {
@@ -1369,7 +1456,7 @@ async function fillDemo() {
   if (S.modes.includes("marque")) { S.type = "marque"; S.logo = fakeLogo(); S.cartouche = false; $("cartouche").checked = false; syncTypeUI(); await evaluateLogo(); }
   $("partnerName").value = "Exemple";
   S.games.forEach(g => g.el.remove()); S.games = [];
-  addGame({ name: "Les Secrets de Zorro", count: 10, cut: fakeBox("ZORRO", "#B23A48"), status: "ok" });
+  addGame({ name: "61 Feuille de printemps", count: 10, cut: fakeBox("61", "#B23A48"), status: "ok" });
   addGame({ name: "Un jeu avec un nom vraiment très long pour tester", count: 1, cut: fakeBox("JEU 2", "#2D6A4F"), status: "ok" });
   S.games.forEach(refreshGameCard);
   update();
@@ -1394,6 +1481,7 @@ function init() {
   $("photoInput").addEventListener("change", e => handlePhoto(e.target.files[0]));
   initPhotoDrag();
   $("addGame").addEventListener("click", () => addGame());
+  initPaste();
   $("dl").addEventListener("click", downloadAll);
   $("folderInput").addEventListener("change", e => { if (e.target.files.length) applySource(folderSource(e.target.files)); });
   $("fillDemo").addEventListener("click", fillDemo);
