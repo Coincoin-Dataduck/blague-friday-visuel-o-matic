@@ -1,0 +1,39 @@
+# Event settings - one line per setting, "NAME : value".
+# Lines starting with # are comments. Delete a line to use the default value.
+# Texts shown on the visuals are written in the partners' language (French here).
+
+EVENT NAME : Blague Friday
+YEAR : 2026
+EVENT LOGO : event-logo.png
+
+# Fonts (files in fonts/) - title font is used on the visuals and UI headings
+TITLE FONT : LondrinaSolid-Regular.ttf
+BODY FONT : AtkinsonHyperlegibleMono-Regular.ttf
+
+# Pages added at the end of every carousel (files in fixed-pages/), in this order
+FIXED PAGES : 01-tombola.png, 02-live.png
+
+# Game pages
+GAME NAME COLOR : #FFFFFF
+GAME NAME IN CAPITALS : yes
+COPIES COLOR : #FAD752
+TEXT FOR 1 COPY : 1 exemplaire à gagner !
+TEXT FOR SEVERAL COPIES : [n] exemplaires à gagner !
+MAX NUMBER OF GAMES : 17
+
+# Cover
+PHOTO OUTLINE COLOR : #FAD752
+PHOTO OUTLINE WIDTH : 12
+FALLBACK BADGE COLOR : #FFFFFF
+BADGE CORNER RADIUS : 24
+BADGE PADDING : 30
+# Minimum contrast between a transparent logo and the background (3 = stricter)
+READABILITY THRESHOLD : 2.5
+
+# Minimum sizes in px (avoid blurry results)
+MIN LOGO SIZE : 800
+MIN PHOTO SIZE : 800
+MIN BOX SIZE : 1000
+
+# Buttons color in the tool
+INTERFACE COLOR : #005756
