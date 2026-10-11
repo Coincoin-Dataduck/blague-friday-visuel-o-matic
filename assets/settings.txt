@@ -14,9 +14,9 @@ BODY FONT : AtkinsonHyperlegibleMono-Regular.ttf
 FIXED PAGES : 01-tombola.png, 02-live.png
 
 # Game pages
-GAME NAME COLOR : #FFFFFF
+GAME NAME COLOR : #002F2E
 GAME NAME IN CAPITALS : yes
-COPIES COLOR : #FAD752
+COPIES COLOR : #005756
 TEXT FOR 1 COPY : 1 exemplaire à gagner !
 TEXT FOR SEVERAL COPIES : [n] exemplaires à gagner !
 MAX NUMBER OF GAMES : 17
