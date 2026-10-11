@@ -226,7 +226,7 @@
     <div class="step">
       <h2><span class="num">1</span> Votre couverture</h2>
       <label>Votre nom ou celui de votre marque
-        <input type="text" id="partnerName" maxlength="60" placeholder="Ex. AccessiJeux">
+        <input type="text" id="partnerName" maxlength="60" placeholder="Ex. Double Combo Games">
         <span class="hint" style="display:block">Sert uniquement à nommer vos fichiers.</span>
       </label>
       <div class="seg" role="group" aria-label="Type de partenaire" id="typeSeg">
@@ -298,7 +298,7 @@ const DEFAULTS = {
   nameColor: "#FFFFFF", uppercase: true, copiesColor: "#FFFFFF",
   textOne: "1 exemplaire à gagner !", textMany: "[n] exemplaires à gagner !", maxGames: 17,
   outlineColor: "#FFFFFF", outlineWidth: 12,
-  badgeColor: "#FFFFFF", badgeRadius: 24, badgePadding: 30,
+  badgeColor: "#FFFFFF", badgeColorDark: "#002F2E", badgeRadius: 24, badgePadding: 30,
   readabilityThreshold: 2.5, minLogo: 800, minPhoto: 800, minBox: 1000,
   uiColor: "#005756",
 };
@@ -320,6 +320,7 @@ const KEYS = {
   "PHOTO OUTLINE COLOR": ["outlineColor", "color"],
   "PHOTO OUTLINE WIDTH": ["outlineWidth", "num"],
   "FALLBACK BADGE COLOR": ["badgeColor", "color"],
+  "DARK BADGE COLOR": ["badgeColorDark", "color"],
   "BADGE CORNER RADIUS": ["badgeRadius", "num"],
   "BADGE PADDING": ["badgePadding", "num"],
   "READABILITY THRESHOLD": ["readabilityThreshold", "num"],
@@ -797,7 +798,7 @@ function drawCover(ctx) {
       const r = logoRect();
       if (S.cartouche) {
         const m = cfg.badgePadding;
-        ctx.fillStyle = cfg.badgeColor;
+        ctx.fillStyle = badgeColorFor();
         roundRect(ctx, r.x - m, r.y - m, r.w + 2 * m, r.h + 2 * m, cfg.badgeRadius);
         ctx.fill();
         ctx.drawImage(S.logo, r.x, r.y, r.w, r.h);
@@ -982,6 +983,25 @@ function computeLogoContrast() {
   return n > 50 ? sum / n : null;
 }
 
+// Mean luminance of the visible logo pixels (0 = black, 1 = white).
+function logoLuminance() {
+  if (!S.logo) return null;
+  const c = toCanvas(S.logo, 300), d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+  let sum = 0, n = 0;
+  for (let i = 0; i < d.length; i += 4) { if (d[i + 3] < 160) continue; sum += lum(d[i], d[i + 1], d[i + 2]); n++; }
+  return n ? sum / n : null;
+}
+function hexLum(hex) { const h = hex.replace("#", ""); return lum(parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)); }
+function ratio(a, b) { return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); }
+// Badge colour: FALLBACK BADGE COLOR (light) or DARK BADGE COLOR, whichever makes the logo most readable.
+// A white logo gets the dark badge, a dark logo the light one.
+function badgeColorFor() {
+  const L = S.logoLum;
+  if (L === null || L === undefined) return S.cfg.badgeColor;
+  const light = S.cfg.badgeColor, dark = S.cfg.badgeColorDark || "#000000";
+  return ratio(L, hexLum(light)) >= ratio(L, hexLum(dark)) ? light : dark;
+}
+
 async function evaluateLogo() {
   const msg = $("logoMsg");
   S.logoTransparent = borderTransparency(S.logo) > 0.3;
@@ -992,13 +1012,15 @@ async function evaluateLogo() {
     return;
   }
   S.logoContrast = computeLogoContrast();
+  S.logoLum = logoLuminance();
+  const logoIsLight = S.logoLum !== null && S.logoLum > 0.5;
   const ok = S.logoContrast === null || S.logoContrast >= S.cfg.readabilityThreshold;
   if (ok || S.cartouche) {
     setMsg(msg, "ok", S.cartouche ? "Logo ajouté avec un cartouche." : "Logo ajouté : il ressort bien sur le fond. ✓");
   } else {
     setMsg(msg, "err", `<strong>Votre logo ressort mal sur le fond</strong> et sera difficile à lire. Choisissez une solution pour continuer :
       <div class="row"><button type="button" class="btn small primary" id="addBadge">Ajouter un cartouche</button>
-      <label class="btn small secondary" style="margin:0; position:relative">Envoyer une autre version (claire ou blanche)<input type="file" accept="image/png,image/svg+xml,image/webp" style="position:absolute; inset:0; opacity:0" id="logoInput2"></label></div>`);
+      <label class="btn small secondary" style="margin:0; position:relative">Envoyer une autre version (${logoIsLight ? "foncée ou noire" : "claire ou blanche"})<input type="file" accept="image/png,image/svg+xml,image/webp" style="position:absolute; inset:0; opacity:0" id="logoInput2"></label></div>`);
     $("addBadge").onclick = () => { S.cartouche = true; $("cartouche").checked = true; evaluateLogo(); update(); };
     $("logoInput2").onchange = e => handleLogo(e.target.files[0]);
   }

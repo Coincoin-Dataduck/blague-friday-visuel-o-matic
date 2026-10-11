@@ -25,6 +25,8 @@ MAX NUMBER OF GAMES : 17
 PHOTO OUTLINE COLOR : #FAD752
 PHOTO OUTLINE WIDTH : 12
 FALLBACK BADGE COLOR : #FFFFFF
+# Used instead when the logo is light (e.g. a white logo)
+DARK BADGE COLOR : #002F2E
 BADGE CORNER RADIUS : 24
 BADGE PADDING : 30
 # Minimum contrast between a transparent logo and the background (3 = stricter)

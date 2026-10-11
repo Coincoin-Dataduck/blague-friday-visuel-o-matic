@@ -61,7 +61,8 @@ Open it with any plain text editor. One setting per line: `NAME : value`. Lines 
 | MAX NUMBER OF GAMES | 17 | A carousel holds 20 pages max |
 | PHOTO OUTLINE COLOR | #FAD752 | Round photo outline |
 | PHOTO OUTLINE WIDTH | 12 | px, 0 = none |
-| FALLBACK BADGE COLOR | #FFFFFF | Added behind an unreadable logo |
+| FALLBACK BADGE COLOR | #FFFFFF | Added behind an unreadable dark logo |
+| DARK BADGE COLOR | #002F2E | Added behind an unreadable light logo (e.g. white) |
 | BADGE CORNER RADIUS | 24 | px |
 | BADGE PADDING | 30 | px |
 | READABILITY THRESHOLD | 2.5 | Minimum logo/background contrast (3 = stricter) |
