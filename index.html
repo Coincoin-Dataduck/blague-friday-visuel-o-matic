@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Générateur de visuels</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/favicon.png">
 <!--
   Partner carousel generator
   --------------------------
@@ -178,7 +180,7 @@
       <img class="evt-logo" id="evtLogo" alt="" hidden>
       <p class="eyebrow" id="evtName">Chargement…</p>
       <h1 id="title">Créez votre carrousel en 3 étapes</h1>
-      <p class="sub" id="subtitle">Ajoutez votre logo et vos jeux, téléchargez des visuels prêts à publier.</p>
+      <p class="sub" id="subtitle">Ajoutez votre logo et vos lots, téléchargez des visuels prêts à publier.</p>
     </div>
   </div>
 </header>
@@ -208,7 +210,7 @@
         <label class="check" style="margin:0"><input type="checkbox" id="showZones"> Show zones</label>
       </div>
       <div class="legend">
-        <span style="--c:#FF0000">Logo</span><span style="--c:#0000FF">Photo</span><span style="--c:#00FF00">Game name</span><span style="--c:#8000FF">Game box</span><span style="--c:#FFFF00">Copies</span>
+        <span style="--c:#FF0000">Logo</span><span style="--c:#0000FF">Photo</span><span style="--c:#00FF00">Prize name</span><span style="--c:#8000FF">Prize photo</span><span style="--c:#FFFF00">Copies</span>
       </div>
     </div>
     <div>
@@ -257,10 +259,10 @@
 
     <!-- Étape 2 -->
     <div class="step">
-      <h2><span class="num">2</span> Vos jeux</h2>
-      <p class="hint" style="margin:-8px 0 16px">Une page par jeu. Idéalement, la photo de la boîte est déjà détourée (PNG transparent). Sinon, l'outil vous aide à la détourer.</p>
+      <h2><span class="num">2</span> Vos lots</h2>
+      <p class="hint" style="margin:-8px 0 16px">Une page par lot (jeu, goodies, carte cadeau…). Idéalement, la photo du lot est déjà détourée (PNG transparent). Sinon, l'outil vous aide à la détourer.</p>
       <div id="games"></div>
-      <button type="button" class="btn secondary block" id="addGame">+ Ajouter un jeu</button>
+      <button type="button" class="btn secondary block" id="addGame">+ Ajouter un lot</button>
       <p class="hint" id="gamesLimit"></p>
     </div>
 
@@ -553,8 +555,8 @@ function polygonCut(src, pts) {
 const ZONE_COLORS = {
   logo: { rgb: [255, 0, 0], label: "Logo", css: "#FF0000" },
   photo: { rgb: [0, 0, 255], label: "Photo", css: "#0000FF" },
-  name: { rgb: [0, 255, 0], label: "Game name", css: "#00C800" },
-  box: { rgb: [128, 0, 255], label: "Game box", css: "#8000FF" },
+  name: { rgb: [0, 255, 0], label: "Prize name", css: "#00C800" },
+  box: { rgb: [128, 0, 255], label: "Prize photo", css: "#8000FF" },
   copies: { rgb: [255, 255, 0], label: "Copies", css: "#E6C800" },
 };
 function detectZones(img, keys) {
@@ -868,10 +870,10 @@ function drawGame(ctx, g) {
   const { A, Z, cfg } = S;
   ctx.drawImage(A.gameBg, 0, 0, S.W, S.H);
   if (g.cut) { const r = containRect(g.cut, Z.box); ctx.drawImage(g.cut, r.x, r.y, r.w, r.h); }
-  else drawPlaceholder(ctx, Z.box, "Photo de la boîte");
+  else drawPlaceholder(ctx, Z.box, "Photo du lot");
   let name = g.name.trim();
   if (name) fitText(ctx, cfg.uppercase ? name.toLocaleUpperCase("fr-FR") : name, Z.name, cfg.nameColor, 2);
-  else fitText(ctx, cfg.uppercase ? "NOM DU JEU" : "Nom du jeu", Z.name, cfg.nameColor, 1, 0.45);
+  else fitText(ctx, cfg.uppercase ? "NOM DU LOT" : "Nom du lot", Z.name, cfg.nameColor, 1, 0.45);
   const n = g.count > 0 ? g.count : 1;
   fitText(ctx, exText(n), Z.copies, cfg.copiesColor, 1, g.count > 0 ? 1 : 0.45);
   if (A.gameFg) ctx.drawImage(A.gameFg, 0, 0, S.W, S.H);
@@ -897,7 +899,7 @@ function drawZonesOverlay(ctx, keys) {
 
 function pageList() {
   const pages = [{ kind: "cover", label: "Couverture" }];
-  S.games.forEach((g, i) => pages.push({ kind: "game", g, label: g.name.trim() || `Jeu ${i + 1}` }));
+  S.games.forEach((g, i) => pages.push({ kind: "game", g, label: g.name.trim() || `Lot ${i + 1}` }));
   (S.A.fixed || []).forEach(f => pages.push({ kind: "fixed", f, label: f.name.replace(/\.png$/i, "").replace(/^\d+[-_ ]*/, "") }));
   return pages;
 }
@@ -915,7 +917,7 @@ const slug = s => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toL
 function fileNameFor(p, i) {
   const n = String(i + 1).padStart(2, "0");
   if (p.kind === "cover") return `${n}-couverture.png`;
-  if (p.kind === "game") return `${n}-jeu-${slug(p.g.name) || "sans-nom"}.png`;
+  if (p.kind === "game") return `${n}-lot-${slug(p.g.name) || "sans-nom"}.png`;
   return `${n}-${slug(p.label) || "page"}.png`;
 }
 
@@ -1107,16 +1109,16 @@ function buildGameCard(g) {
   const el = document.createElement("div");
   el.className = "game";
   el.innerHTML = `
-    <div class="game-head"><strong class="gtitle">Jeu</strong><button type="button" class="link danger" data-act="del">Retirer</button></div>
+    <div class="game-head"><strong class="gtitle">Lot</strong><button type="button" class="link danger" data-act="del">Retirer</button></div>
     <div class="game-grid">
-      <label>Nom du jeu<input type="text" data-f="name" maxlength="60" placeholder="Ex. 61 Feuille de printemps"></label>
+      <label>Nom du lot<input type="text" data-f="name" maxlength="60" placeholder="Ex. 61 Feuille de printemps"></label>
       <label>Exemplaires<input type="number" data-f="count" min="1" max="999" inputmode="numeric"></label>
     </div>
-    <label class="drop" data-paste="game" style="margin:0"><span class="droptext">Photo de la boîte</span><small>PNG détouré idéalement · JPG accepté (à détourer ici)</small><span class="paste-hint">ou glissez le fichier ici, ou collez-le (Ctrl+V / ⌘+V)</span>
+    <label class="drop" data-paste="game" style="margin:0"><span class="droptext">Photo du lot</span><small>PNG détouré idéalement · JPG accepté (à détourer ici)</small><span class="paste-hint">ou glissez le fichier ici, ou collez-le (Ctrl+V / ⌘+V)</span>
       <input type="file" data-f="file" accept="image/png,image/webp,image/jpeg"></label>
     <div class="msg" data-f="msg" role="status"></div>
     <div class="detour" hidden>
-      <h3>Détourez la boîte</h3>
+      <h3>Détourez le lot</h3>
       <div class="tabs" role="tablist">
         <button type="button" role="tab" data-tab="auto">Fond uni (automatique)</button>
         <button type="button" role="tab" data-tab="poly">Cliquer les coins</button>
@@ -1124,11 +1126,11 @@ function buildGameCard(g) {
       <div data-pane="auto">
         <canvas class="dcanvas checker"></canvas>
         <label style="margin-top:12px">Tolérance<input type="range" data-f="tol" min="5" max="120"></label>
-        <p class="hint" style="margin-top:-4px">Augmentez si des restes de fond apparaissent, baissez si la boîte est rognée.</p>
+        <p class="hint" style="margin-top:-4px">Augmentez si des restes de fond apparaissent, baissez si le lot est rogné.</p>
       </div>
       <div data-pane="poly" hidden>
         <canvas class="pcanvas"></canvas>
-        <p class="hint">Cliquez sur chaque coin de la boîte, dans l'ordre : 4 coins pour une boîte de face, 6 pour une boîte en 3D.</p>
+        <p class="hint">Cliquez sur chaque coin du lot, dans l'ordre : 4 coins pour une boîte de face, 6 pour une boîte en 3D, plus de points pour une forme libre.</p>
         <div class="row"><button type="button" class="btn small secondary" data-act="undo">Annuler le dernier point</button><button type="button" class="btn small secondary" data-act="reset">Recommencer</button></div>
       </div>
       <div class="row"><button type="button" class="btn primary block" data-act="validate">Valider ce détourage</button></div>
@@ -1241,7 +1243,7 @@ function routePaste(file) {
   else if (kind === "photo") { handlePhoto(file); toast("Image collée comme photo."); }
   else {
     const g = S.games.find(x => x.el && x.el.contains(d)); if (!g) return;
-    handleBox(g, file); toast(`Image collée pour le jeu ${S.games.indexOf(g) + 1}.`);
+    handleBox(g, file); toast(`Image collée pour le lot ${S.games.indexOf(g) + 1}.`);
   }
   setPasteTarget(d);
 }
@@ -1253,7 +1255,7 @@ async function handleBox(g, file) {
   try { img = await loadImage(file); } catch (e) { setMsg(msgEl, "err", "Ce fichier n'est pas une image lisible."); return; }
   const { w, h } = dims(img);
   if (Math.max(w, h) < S.cfg.minBox) {
-    setMsg(msgEl, "err", `Cette image est trop petite (${w}×${h} px) : la boîte serait floue. Il faut au moins ${S.cfg.minBox} px sur le côté le plus grand. Demandez le packshot haute définition à l'éditeur.`);
+    setMsg(msgEl, "err", `Cette image est trop petite (${w}×${h} px) : le lot serait flou. Il faut au moins ${S.cfg.minBox} px sur le côté le plus grand. Demandez une photo haute définition (pour un jeu : le packshot de l'éditeur).`);
     return;
   }
   g.work = toCanvas(img, 1400);
@@ -1265,7 +1267,7 @@ async function handleBox(g, file) {
   } else {
     g.status = "detour";
     g.tab = "auto";
-    setMsg(msgEl, "warn", "Cette image a un fond : détourez la boîte ci-dessous avant de continuer.");
+    setMsg(msgEl, "warn", "Cette image a un fond : détourez le lot ci-dessous avant de continuer.");
   }
   refreshGameCard(g);
   update();
@@ -1316,7 +1318,7 @@ function validateCutout(g) {
   if (g.tab === "auto") {
     res = g.autoResult || autoCut(g.work, g.tol);
     if (borderTransparency(res) < 0.6) {
-      setMsg(msgEl, "err", "Le fond n'a pas pu être retiré complètement (fond trop chargé, ou boîte qui touche le bord de la photo). Essayez d'augmenter la tolérance, ou utilisez « Cliquer les coins ».");
+      setMsg(msgEl, "err", "Le fond n'a pas pu être retiré complètement (fond trop chargé, ou lot qui touche le bord de la photo). Essayez d'augmenter la tolérance, ou utilisez « Cliquer les coins ».");
       return;
     }
   } else {
@@ -1335,7 +1337,7 @@ function refreshGameCard(g) {
   const el = g.el;
   el.querySelector(".detour").hidden = g.status !== "detour";
   el.querySelector(".done").hidden = g.status !== "ok";
-  el.querySelector(".droptext").textContent = g.work || g.cut ? "Changer la photo de la boîte" : "Photo de la boîte";
+  el.querySelector(".droptext").textContent = g.work || g.cut ? "Changer la photo du lot" : "Photo du lot";
   el.querySelector('[data-act="redo"]').hidden = !g.work;
   if (g.status === "detour") requestAnimationFrame(() => refreshCutout(g));
   if (g.status === "ok" && g.cut) {
@@ -1356,26 +1358,26 @@ function problems() {
     if (!S.logo) out.push("Ajoutez votre logo.");
     else if (S.logoTransparent && S.logoContrast !== null && S.logoContrast < S.cfg.readabilityThreshold && !S.cartouche) out.push("Votre logo ressort mal sur le fond : ajoutez un cartouche ou envoyez une autre version.");
   } else if (!S.photo) out.push("Ajoutez votre photo.");
-  if (!S.games.length) out.push("Ajoutez au moins un jeu.");
+  if (!S.games.length) out.push("Ajoutez au moins un lot.");
   S.games.forEach((g, i) => {
-    const n = g.name.trim() || `Jeu ${i + 1}`;
-    if (!g.name.trim()) out.push(`Jeu ${i + 1} : indiquez le nom du jeu.`);
+    const n = g.name.trim() || `Lot ${i + 1}`;
+    if (!g.name.trim()) out.push(`Lot ${i + 1} : indiquez le nom du lot.`);
     if (!(g.count > 0)) out.push(`${n} : indiquez le nombre d'exemplaires.`);
-    if (g.status === "empty") out.push(`${n} : ajoutez la photo de la boîte.`);
-    if (g.status === "detour") out.push(`${n} : validez le détourage de la boîte.`);
+    if (g.status === "empty") out.push(`${n} : ajoutez la photo du lot.`);
+    if (g.status === "detour") out.push(`${n} : validez le détourage du lot.`);
   });
   return out;
 }
 
 function update() {
   if (!S.ready) return;
-  S.games.forEach((g, i) => { const t = g.el.querySelector(".gtitle"); t.textContent = `Jeu ${i + 1}`; });
+  S.games.forEach((g, i) => { const t = g.el.querySelector(".gtitle"); t.textContent = `Lot ${i + 1}`; });
   const max = maxGames();
   $("addGame").disabled = S.games.length >= max;
   $("addGame").hidden = S.games.length >= max;
   $("gamesLimit").textContent = S.games.length >= max
-    ? `Maximum atteint : ${max} jeux (un carrousel Instagram compte 20 pages au plus).`
-    : `Jusqu'à ${max} jeux.`;
+    ? `Maximum atteint : ${max} lots (un carrousel Instagram compte 20 pages au plus).`
+    : `Jusqu'à ${max} lots.`;
   const list = problems();
   const ul = $("checklist");
   ul.innerHTML = "";
@@ -1479,7 +1481,7 @@ async function fillDemo() {
   $("partnerName").value = "Exemple";
   S.games.forEach(g => g.el.remove()); S.games = [];
   addGame({ name: "61 Feuille de printemps", count: 10, cut: fakeBox("61", "#B23A48"), status: "ok" });
-  addGame({ name: "Un jeu avec un nom vraiment très long pour tester", count: 1, cut: fakeBox("JEU 2", "#2D6A4F"), status: "ok" });
+  addGame({ name: "Un lot avec un nom vraiment très long pour tester", count: 1, cut: fakeBox("LOT 2", "#2D6A4F"), status: "ok" });
   S.games.forEach(refreshGameCard);
   update();
 }
